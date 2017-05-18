@@ -1,10 +1,17 @@
 package torsete.util;
 
+import org.junit.After;
+import org.junit.Before;
+import org.junit.Test;
+
 import java.io.*;
 import java.util.*;
 import java.util.function.BiFunction;
 import java.util.function.Predicate;
 import java.util.stream.Collectors;
+
+import static junit.framework.TestCase.*;
+import static org.junit.Assert.assertTrue;
 
 /**
  * Created by Torsten on 18.05.2017.
