@@ -1,6 +1,7 @@
 package torsete.util;
 
 import java.io.*;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Properties;
@@ -15,7 +16,15 @@ public class OrderedProperties extends Properties {
 
     public OrderedProperties() {
         super();
-        orderedEntries = new OrderedEntries().setEntryConsumer((e, l) -> put(e.getKey(), e.getValue()));
+        orderedEntries = new OrderedEntries().setEntryConsumer((e, l) -> {
+            Object key = e.getKey();
+            Object value = e.getValue();
+            if (get(key) == null) {
+                put(key, new ArrayList<>());
+            }
+            get(key).add(value);
+        });
+
     }
 
     @Override
@@ -33,7 +42,6 @@ public class OrderedProperties extends Properties {
     @Override
     public synchronized void load(Reader reader) throws IOException {
         orderedEntries.load(reader);
-
     }
 
     public synchronized void load(File file) throws IOException {
@@ -46,6 +54,25 @@ public class OrderedProperties extends Properties {
         stringReader.close();
     }
 
+    @Override
+    public List<Object> get(Object key) {
+        return (List<Object>) super.get(key);
+    }
+
+    public OrderedProperties setIncludePredicate(Predicate<Map.Entry<Object, Object>> includeKeyPredicate) {
+        orderedEntries.setIncludePredicate(includeKeyPredicate);
+        return this;
+    }
+
+    public OrderedProperties enableDotsInKey(boolean enabled) {
+        orderedEntries.enableDotsInKey(enabled);
+        return this;
+    }
+
+    public OrderedProperties enableTabsInKey(boolean enabled) {
+        orderedEntries.enableTabsInKey(enabled);
+        return this;
+    }
 
     public List<Map.Entry<Object, Object>> getEntries() {
         return orderedEntries.getEntries();
@@ -63,28 +90,13 @@ public class OrderedProperties extends Properties {
         return orderedEntries.getSourcename();
     }
 
-    public OrderedProperties setIncludePredicate(Predicate<Map.Entry<Object, Object>> includeKeyPredicate) {
-        orderedEntries.setIncludePredicate(includeKeyPredicate);
-        return this;
-    }
 
     public List<Integer> getLinenumbers() {
         return orderedEntries.getLinenumbers();
-
     }
 
     public boolean isUnique(String key) {
         return orderedEntries.isUnique(key);
     }
 
-    public OrderedProperties enableDotsInKey(boolean enabled) {
-        orderedEntries.enableDotsInKey(enabled);
-        return this;
-
-    }
-
-    public OrderedProperties enableTabsInKey(boolean enabled) {
-        orderedEntries.enableTabsInKey(enabled);
-        return this;
-    }
 }
