@@ -29,7 +29,7 @@ public class OrderedPropertiesTest {
         testUtil.setupTestFolder();
         testFolderName = testUtil.getTestFolderName();
         includeKeyPredicate = entry -> entry.toString().toLowerCase().contains("include");
-        orderedProperties = new OrderedProperties().setIncludeKeyPredicate(includeKeyPredicate);
+        orderedProperties = new OrderedProperties().setIncludePredicate(includeKeyPredicate);
     }
 
     @After
@@ -44,18 +44,14 @@ public class OrderedPropertiesTest {
 
         assertNull(orderedProperties.getSourcename());
         assertEquals(0, orderedProperties.size());
-        assertEquals(0, orderedProperties.getOrdered().size());
-        assertEquals(-1, orderedProperties.getOrderedPropertyIndex("xxx"));
-        assertEquals(0, orderedProperties.getIncludingOrderedProperties().size());
-        assertEquals(0, orderedProperties.getIncludedOrderedProperties().size());
+        assertEquals(0, orderedProperties.getEntries().size());
+        assertEquals(-1, orderedProperties.getOrderedEntriesIndex("xxx"));
 
         orderedProperties.load(new File(testFolderName + File.separator + "test"));
         assertEquals(testFolderName + File.separator + "test", orderedProperties.getSourcename());
         assertEquals(0, orderedProperties.size());
-        assertEquals(0, orderedProperties.getOrdered().size());
-        assertEquals(-1, orderedProperties.getOrderedPropertyIndex("xxx"));
-        assertEquals(0, orderedProperties.getIncludingOrderedProperties().size());
-        assertEquals(0, orderedProperties.getIncludedOrderedProperties().size());
+        assertEquals(0, orderedProperties.getEntries().size());
+        assertEquals(-1, orderedProperties.getOrderedEntriesIndex("xxx"));
     }
 
     @Test
@@ -80,17 +76,17 @@ public class OrderedPropertiesTest {
         orderedProperties.load(new File(testFolderName + File.separator + "test"));
 
         assertEquals(3, orderedProperties.size());
-        assertEquals("a", orderedProperties.get("key1"));
-        assertEquals("b", orderedProperties.get("key2"));
-        assertEquals("cde", orderedProperties.get("\""));
+        assertEquals("a", orderedProperties.readFirst("key1"));
+        assertEquals("b", orderedProperties.readFirst("key2"));
+        assertEquals("cde", orderedProperties.readFirst("\""));
 
-        List<Map.Entry<Object, Object>> ordered = orderedProperties.getOrdered();
+        List<Map.Entry<Object, Object>> ordered = orderedProperties.getEntries();
         assertEquals(3, ordered.size());
         assertEquals("a", ordered.get(0).getValue());
         assertEquals("b", ordered.get(1).getValue());
         assertEquals("cde", ordered.get(2).getValue());
 
-        List<Integer> orderedLineNumbers = orderedProperties.getOrderedLineNumbers();
+        List<Integer> orderedLineNumbers = orderedProperties.getLinenumbers();
         assertEquals(3, orderedLineNumbers.size());
         assertEquals(Integer.valueOf(0), orderedLineNumbers.get(0));
         assertEquals(Integer.valueOf(2), orderedLineNumbers.get(1));
@@ -104,7 +100,7 @@ public class OrderedPropertiesTest {
         assertTrue(orderedProperties.isUnique("key2"));
         assertTrue(orderedProperties.isUnique("\""));
 
-        assertEquals(-1, orderedProperties.getOrderedPropertyIndex("xxx"));
+        assertEquals(-1, orderedProperties.getOrderedEntriesIndex("xxx"));
     }
 
     @Test
@@ -130,16 +126,16 @@ public class OrderedPropertiesTest {
         orderedProperties.load(new File(testFolderName + File.separator + "test"));
 
         assertEquals(2, orderedProperties.size());
-        assertEquals("abc", orderedProperties.get("key1"));
-        assertEquals("d", orderedProperties.get("key2"));
+        assertEquals("abc", orderedProperties.readFirst("key1"));
+        assertEquals("d", orderedProperties.readFirst("key2"));
 
-        List<Map.Entry<Object, Object>> ordered = orderedProperties.getOrdered();
+        List<Map.Entry<Object, Object>> ordered = orderedProperties.getEntries();
         assertEquals(2, ordered.size());
         assertEquals("abc", ordered.get(0).getValue());
         assertEquals("d", ordered.get(1).getValue());
 
 
-        List<Integer> orderedLineNumbers = orderedProperties.getOrderedLineNumbers();
+        List<Integer> orderedLineNumbers = orderedProperties.getLinenumbers();
         assertEquals(2, orderedLineNumbers.size());
         assertEquals(Integer.valueOf(1), orderedLineNumbers.get(0));
         assertEquals(Integer.valueOf(8), orderedLineNumbers.get(1));
@@ -160,19 +156,19 @@ public class OrderedPropertiesTest {
         orderedProperties.load(new File(testFolderName + File.separator + "test"));
 
         assertEquals(3, orderedProperties.size());
-        assertEquals(3, orderedProperties.getOrdered().size());
+        assertEquals(3, orderedProperties.getEntries().size());
 
-        assertEquals("a1", orderedProperties.get("key1"));
-        assertEquals("b\\", orderedProperties.get("key2"));
-        assertEquals("cde", orderedProperties.get("key3"));
+        assertEquals("a1", orderedProperties.readFirst("key1"));
+        assertEquals("b\\", orderedProperties.readFirst("key2"));
+        assertEquals("cde", orderedProperties.readFirst("key3"));
 
-        assertEquals("a1", orderedProperties.getOrdered().get(0).getValue());
-        assertEquals("b\\", orderedProperties.getOrdered().get(1).getValue());
-        assertEquals("cde", orderedProperties.getOrdered().get(2).getValue());
+        assertEquals("a1", orderedProperties.getEntries().get(0).getValue());
+        assertEquals("b\\", orderedProperties.getEntries().get(1).getValue());
+        assertEquals("cde", orderedProperties.getEntries().get(2).getValue());
 
-        assertEquals("key1", orderedProperties.getOrdered().get(0).getKey());
-        assertEquals("key2", orderedProperties.getOrdered().get(1).getKey());
-        assertEquals("key3", orderedProperties.getOrdered().get(2).getKey());
+        assertEquals("key1", orderedProperties.getEntries().get(0).getKey());
+        assertEquals("key2", orderedProperties.getEntries().get(1).getKey());
+        assertEquals("key3", orderedProperties.getEntries().get(2).getKey());
     }
 
     @Test
@@ -211,19 +207,19 @@ public class OrderedPropertiesTest {
         /**
          * Begge properties kan aflæses:
          */
-        assertEquals(2, orderedProperties.getOrdered().size());
-        assertEquals("abc", orderedProperties.getOrdered().get(0).getValue());
-        assertEquals("def", orderedProperties.getOrdered().get(1).getValue());
-        assertEquals("key", orderedProperties.getOrdered().get(1).getKey());
-        assertEquals("key", orderedProperties.getOrdered().get(0).getKey());
-        assertEquals(0, orderedProperties.getOrderedPropertyIndex("key"));
+        assertEquals(2, orderedProperties.getEntries().size());
+        assertEquals("abc", orderedProperties.getEntries().get(0).getValue());
+        assertEquals("def", orderedProperties.getEntries().get(1).getValue());
+        assertEquals("key", orderedProperties.getEntries().get(1).getKey());
+        assertEquals("key", orderedProperties.getEntries().get(0).getKey());
+        assertEquals(0, orderedProperties.getOrderedEntriesIndex("key"));
         assertFalse(orderedProperties.isUnique("key"));
 
         /**
-         * Og en SequentialProperties er stadig også en Properties:
+         * And an {@link OrderedProperties} is still a {@link Properties}:
          */
-        assertEquals(1, orderedProperties.getProperties().size());
-        assertEquals("def", orderedProperties.getProperties().get("key"));
+        assertEquals(1, orderedProperties.size());
+        assertEquals("def", orderedProperties.get("key"));
     }
 
     @Test
@@ -250,12 +246,12 @@ public class OrderedPropertiesTest {
         OrderedProperties orderedProperties = new OrderedProperties();
         File inputFile = new File(filename);
         orderedProperties.load(inputFile);  // File fordi der skal være et filsysten at læse fra
-        assertEquals(3, orderedProperties.size(true));
-        assertEquals(3, orderedProperties.getOrdered().size());
 
-        assertEquals("value1", orderedProperties.get("key1"));
-        assertEquals("value2", orderedProperties.get("key2"));
-        assertEquals("value3", orderedProperties.get("key3"));
+        assertEquals(3, orderedProperties.getEntries().size());
+
+        assertEquals("value1", orderedProperties.readFirst("key1"));
+        assertEquals("value2", orderedProperties.readFirst("key2"));
+        assertEquals("value3", orderedProperties.readFirst("key3"));
     }
 
     @Test
@@ -267,17 +263,17 @@ public class OrderedPropertiesTest {
 
         orderedProperties.load(new File(testFolderName + File.separator + "test"));
         assertEquals(2, orderedProperties.size());
-        assertEquals(2, orderedProperties.getOrdered().size());
+        assertEquals(2, orderedProperties.getEntries().size());
 
-        assertEquals("def", orderedProperties.get("key1"));
-        assertEquals("abc", orderedProperties.get("key2"));
+        assertEquals("def", orderedProperties.readFirst("key1"));
+        assertEquals("abc", orderedProperties.readFirst("key2"));
 
-        assertEquals("abc", orderedProperties.getOrdered().get(0).getValue());
-        assertEquals("def", orderedProperties.getOrdered().get(1).getValue());
-        assertEquals("key2", orderedProperties.getOrdered().get(0).getKey());
-        assertEquals("key1", orderedProperties.getOrdered().get(1).getKey());
-        assertEquals(0, orderedProperties.getOrderedPropertyIndex("key2"));
-        assertEquals(1, orderedProperties.getOrderedPropertyIndex("key1"));
+        assertEquals("abc", orderedProperties.getEntries().get(0).getValue());
+        assertEquals("def", orderedProperties.getEntries().get(1).getValue());
+        assertEquals("key2", orderedProperties.getEntries().get(0).getKey());
+        assertEquals("key1", orderedProperties.getEntries().get(1).getKey());
+        assertEquals(0, orderedProperties.getOrderedEntriesIndex("key2"));
+        assertEquals(1, orderedProperties.getOrderedEntriesIndex("key1"));
     }
 
     @Test
@@ -297,7 +293,7 @@ public class OrderedPropertiesTest {
 
         orderedProperties.load(new File(testFolderName + File.separator + "test"));
         assertEquals(9, orderedProperties.size());
-        assertEquals(9, orderedProperties.getOrdered().size());
+        assertEquals(9, orderedProperties.getEntries().size());
 
         verifyValue("IwrdDocFolder", "IWRD/");
         verifyValue("DefaultDocFolder", "GAIA/");
@@ -353,45 +349,30 @@ public class OrderedPropertiesTest {
 
         orderedProperties.load(new File(testFolderName + File.separator + "test"));
 //        assertEquals(1, orderedProperties.size(false));
-        assertEquals(3, orderedProperties.size(true));
-        assertEquals(3, orderedProperties.getOrdered().size());
+        assertEquals(3, orderedProperties.size());
+        assertEquals(3, orderedProperties.getEntries().size());
 
-        assertEquals("value", orderedProperties.get("key"));
-        assertEquals("value1", orderedProperties.get("key1"));
-        assertEquals("value2", orderedProperties.get("key2"));
+        assertEquals("value", orderedProperties.readFirst("key"));
+        assertEquals("value1", orderedProperties.readFirst("key1"));
+        assertEquals("value2", orderedProperties.readFirst("key2"));
 
         /**
          * Bemærk at sekvensen er bestemt af rekursionen
          */
-        assertEquals("value1", orderedProperties.getOrdered().get(0).getValue());
-        assertEquals("value2", orderedProperties.getOrdered().get(1).getValue());
-        assertEquals("value", orderedProperties.getOrdered().get(2).getValue());
-        assertEquals("key1", orderedProperties.getOrdered().get(0).getKey());
-        assertEquals("key2", orderedProperties.getOrdered().get(1).getKey());
-        assertEquals("key", orderedProperties.getOrdered().get(2).getKey());
-        assertEquals(2, orderedProperties.getOrderedPropertyIndex("key"));
-        assertEquals(0, orderedProperties.getOrderedPropertyIndex("key1"));
-        assertEquals(1, orderedProperties.getOrderedPropertyIndex("key2"));
+        assertEquals("value1", orderedProperties.getEntries().get(0).getValue());
+        assertEquals("value2", orderedProperties.getEntries().get(1).getValue());
+        assertEquals("value", orderedProperties.getEntries().get(2).getValue());
+        assertEquals("key1", orderedProperties.getEntries().get(0).getKey());
+        assertEquals("key2", orderedProperties.getEntries().get(1).getKey());
+        assertEquals("key", orderedProperties.getEntries().get(2).getKey());
+        assertEquals(2, orderedProperties.getOrderedEntriesIndex("key"));
+        assertEquals(0, orderedProperties.getOrderedEntriesIndex("key1"));
+        assertEquals(1, orderedProperties.getOrderedEntriesIndex("key2"));
 
-        OrderedProperties child0 = this.orderedProperties.getIncludedOrderedProperties().get(0);
-        OrderedProperties child1 = this.orderedProperties.getIncludedOrderedProperties().get(1);
 
         assertEquals(testFolderName + File.separator + "test", orderedProperties.getSourcename());
-        assertEquals(testFolderName + File.separator + "test1", child0.getSourcename());
-        assertEquals(testFolderName + File.separator + "test2", child1.getSourcename());
 
 
-        assertEquals(0, orderedProperties.getIncludingOrderedProperties().size());
-        assertEquals(2, orderedProperties.getIncludedOrderedProperties().size());
-        assertEquals(1, child0.getIncludingOrderedProperties().size());
-        assertEquals(orderedProperties, child0.getIncludingOrderedProperties().get(0));
-        assertEquals(0, child0.getIncludedOrderedProperties().size());
-        assertEquals(1, child1.getIncludingOrderedProperties().size());
-        assertEquals(orderedProperties, child1.getIncludingOrderedProperties().get(0));
-        assertEquals(0, child1.getIncludedOrderedProperties().size());
-        assertFalse(orderedProperties == child0);
-        assertFalse(orderedProperties == child1);
-        assertFalse(child0 == child1);
     }
 
     @Test
@@ -419,34 +400,19 @@ public class OrderedPropertiesTest {
 
         traverseSequentialProperties(orderedProperties, 0);
 
-        assertEquals(5, orderedProperties.size(true));
-        assertEquals(5, orderedProperties.getOrdered().size());
+        assertEquals(5, orderedProperties.size());
+        assertEquals(5, orderedProperties.getEntries().size());
 
-        assertEquals("value", orderedProperties.get("key"));
-        assertEquals("value1", orderedProperties.get("key1"));
-        assertEquals("value2", orderedProperties.get("key2"));
-        assertEquals("10", orderedProperties.get("key10"));
-        assertEquals("11", orderedProperties.get("key11"));
+        assertEquals("value", orderedProperties.readFirst("key"));
+        assertEquals("value1", orderedProperties.readFirst("key1"));
+        assertEquals("value2", orderedProperties.readFirst("key2"));
+        assertEquals("10", orderedProperties.readFirst("key10"));
+        assertEquals("11", orderedProperties.readFirst("key11"));
 
 
-        OrderedProperties child0 = orderedProperties.getIncludedOrderedProperties().get(0);
-        OrderedProperties child1 = orderedProperties.getIncludedOrderedProperties().get(1);
-        OrderedProperties child3 = child0.getIncludedOrderedProperties().get(0);
 
         assertEquals(testFolderName + File.separator + "test", orderedProperties.getSourcename());
-        assertEquals(testFolderName + File.separator + "test2", child0.getSourcename());
-        assertEquals(testFolderName + File.separator + "test1", child1.getSourcename());
-        assertEquals(testFolderName + File.separator + "test3", child3.getSourcename());
 
-
-        assertEquals(0, orderedProperties.getIncludingOrderedProperties().size());
-        assertEquals(2, orderedProperties.getIncludedOrderedProperties().size());
-        assertEquals(1, child0.getIncludingOrderedProperties().size());
-        assertEquals(orderedProperties, child0.getIncludingOrderedProperties().get(0));
-        assertEquals(1, child0.getIncludedOrderedProperties().size());
-        assertEquals(1, child1.getIncludingOrderedProperties().size());
-        assertEquals(orderedProperties, child1.getIncludingOrderedProperties().get(0));
-        assertEquals(0, child1.getIncludedOrderedProperties().size());
     }
 
 
@@ -462,17 +428,17 @@ public class OrderedPropertiesTest {
 
         orderedProperties.load(new File(testFolderName + File.separator + "test"));
         assertEquals(5, orderedProperties.size());
-        assertEquals(5, orderedProperties.getOrdered().size());
-        assertEquals("0", orderedProperties.get("a"));
-        assertEquals("", orderedProperties.get("b"));
-        assertEquals("", orderedProperties.get("c"));
-        assertEquals("1", orderedProperties.get("d"));
-        assertEquals("2", orderedProperties.get("e"));
-        verifyEntry("a", "0", orderedProperties.getOrdered().get(0));
-        verifyEntry("b", "", orderedProperties.getOrdered().get(1));
-        verifyEntry("c", "", orderedProperties.getOrdered().get(2));
-        verifyEntry("d", "1", orderedProperties.getOrdered().get(3));
-        verifyEntry("e", "2", orderedProperties.getOrdered().get(4));
+        assertEquals(5, orderedProperties.getEntries().size());
+        assertEquals("0", orderedProperties.readFirst("a"));
+        assertEquals("", orderedProperties.readFirst("b"));
+        assertEquals("", orderedProperties.readFirst("c"));
+        assertEquals("1", orderedProperties.readFirst("d"));
+        assertEquals("2", orderedProperties.readFirst("e"));
+        verifyEntry("a", "0", orderedProperties.getEntries().get(0));
+        verifyEntry("b", "", orderedProperties.getEntries().get(1));
+        verifyEntry("c", "", orderedProperties.getEntries().get(2));
+        verifyEntry("d", "1", orderedProperties.getEntries().get(3));
+        verifyEntry("e", "2", orderedProperties.getEntries().get(4));
     }
 
     @Test
@@ -488,29 +454,29 @@ public class OrderedPropertiesTest {
                 "");
 
         orderedProperties.load(new File(testFolderName + File.separator + "test"));
-        assertEquals(2, orderedProperties.getProperties().size());
-        assertEquals("2", orderedProperties.get("a"));
-        assertEquals("0", orderedProperties.get(""));
+        assertEquals(2, orderedProperties.size());
+        assertEquals("2", orderedProperties.readFirst("a"));
+        assertEquals("0", orderedProperties.readFirst(""));
 
-        assertEquals(3, orderedProperties.getOrdered().size());
-        verifyEntry("", "0", orderedProperties.getOrdered().get(0));
-        verifyEntry("", "1", orderedProperties.getOrdered().get(1));
-        verifyEntry("a", "2", orderedProperties.getOrdered().get(2));
+        assertEquals(3, orderedProperties.getEntries().size());
+        verifyEntry("", "0", orderedProperties.getEntries().get(0));
+        verifyEntry("", "1", orderedProperties.getEntries().get(1));
+        verifyEntry("a", "2", orderedProperties.getEntries().get(2));
 
 
         orderedProperties.clear();
         orderedProperties.enableDotsInKey(true);
         orderedProperties.enableTabsInKey(true);
         orderedProperties.load(new File(testFolderName + File.separator + "test"));
-        assertEquals(3, orderedProperties.size());
-        assertEquals("0", orderedProperties.get(""));
-        assertEquals("1", orderedProperties.get("."));
-        assertEquals("2", orderedProperties.get(".a"));
+        assertEquals(3, orderedProperties.getEntries().size());
+        assertEquals("0", orderedProperties.readFirst(""));
+        assertEquals("1", orderedProperties.readFirst("."));
+        assertEquals("2", orderedProperties.readFirst(".a"));
 
-        assertEquals(3, orderedProperties.getOrdered().size());
-        verifyEntry("", "0", orderedProperties.getOrdered().get(0));
-        verifyEntry(".", "1", orderedProperties.getOrdered().get(1));
-        verifyEntry(".a", "2", orderedProperties.getOrdered().get(2));
+        assertEquals(3, orderedProperties.getEntries().size());
+        verifyEntry("", "0", orderedProperties.getEntries().get(0));
+        verifyEntry(".", "1", orderedProperties.getEntries().get(1));
+        verifyEntry(".a", "2", orderedProperties.getEntries().get(2));
     }
 
     @Test
@@ -523,28 +489,28 @@ public class OrderedPropertiesTest {
 
         orderedProperties.load(new File(testFolderName + File.separator + "test"));
         assertEquals(3, orderedProperties.size());
-        assertEquals("0", orderedProperties.get(""));
-        assertEquals("1", orderedProperties.get("."));
-        assertEquals("2", orderedProperties.get(".a."));
+        assertEquals("0", orderedProperties.readFirst(""));
+        assertEquals("1", orderedProperties.readFirst("."));
+        assertEquals("2", orderedProperties.readFirst(".a."));
 
-        assertEquals(3, orderedProperties.getOrdered().size());
-        verifyEntry("", "0", orderedProperties.getOrdered().get(0));
-        verifyEntry(".", "1", orderedProperties.getOrdered().get(1));
-        verifyEntry(".a.", "2", orderedProperties.getOrdered().get(2));
+        assertEquals(3, orderedProperties.getEntries().size());
+        verifyEntry("", "0", orderedProperties.getEntries().get(0));
+        verifyEntry(".", "1", orderedProperties.getEntries().get(1));
+        verifyEntry(".a.", "2", orderedProperties.getEntries().get(2));
 
 
         orderedProperties.clear();
         orderedProperties.enableDotsInKey(true);
         orderedProperties.load(new File(testFolderName + File.separator + "test"));
-        assertEquals(3, orderedProperties.size());
-        assertEquals("0", orderedProperties.get(""));
-        assertEquals("1", orderedProperties.get("."));
-        assertEquals("2", orderedProperties.get(".a."));
+        assertEquals(3, orderedProperties.getEntries().size());
+        assertEquals("0", orderedProperties.readFirst(""));
+        assertEquals("1", orderedProperties.readFirst("."));
+        assertEquals("2", orderedProperties.readFirst(".a."));
 
-        assertEquals(3, orderedProperties.getOrdered().size());
-        verifyEntry("", "0", orderedProperties.getOrdered().get(0));
-        verifyEntry(".", "1", orderedProperties.getOrdered().get(1));
-        verifyEntry(".a.", "2", orderedProperties.getOrdered().get(2));
+        assertEquals(3, orderedProperties.getEntries().size());
+        verifyEntry("", "0", orderedProperties.getEntries().get(0));
+        verifyEntry(".", "1", orderedProperties.getEntries().get(1));
+        verifyEntry(".a.", "2", orderedProperties.getEntries().get(2));
     }
 
     @Test
@@ -556,7 +522,7 @@ public class OrderedPropertiesTest {
         orderedProperties.enableDotsInKey(true);
         orderedProperties.load(new File(testFolderName + File.separator + "test"));
         assertEquals(1, orderedProperties.size());
-        assertEquals("1", orderedProperties.get("."));
+        assertEquals("1", orderedProperties.readFirst("."));
     }
 
     @Test
@@ -579,7 +545,7 @@ public class OrderedPropertiesTest {
         orderedProperties.enableDotsInKey(true);
         orderedProperties.enableTabsInKey(true);
         orderedProperties.load(new File(testFolderName + File.separator + "test"));
-        List<Map.Entry<Object, Object>> sequential = orderedProperties.getOrdered();
+        List<Map.Entry<Object, Object>> sequential = orderedProperties.getEntries();
         assertEquals(12, sequential.size());
         int i = 0;
         verifyEntry("root", "0", sequential.get(i++));
@@ -619,12 +585,9 @@ public class OrderedPropertiesTest {
         } catch (IOException e) {
             fail(e.getMessage());
         }
-        if (orderedProperties.getIncludedOrderedProperties().size() == 0) {
-            assertEquals(file.getAbsolutePath(), standardProperties.size(), orderedProperties.size());
-        }
 
-        assertTrue(orderedProperties.getOrdered().size() >= orderedProperties.size());
-        assertTrue(orderedProperties.size() + " " + standardProperties.size(), +orderedProperties.getIncludedOrderedProperties().size() + orderedProperties.size() >= standardProperties.size());
+
+        assertTrue(orderedProperties.getEntries().size() >= orderedProperties.size());
 
         Enumeration<?> enumeration = standardProperties.propertyNames();
         while (enumeration.hasMoreElements()) {
@@ -632,19 +595,19 @@ public class OrderedPropertiesTest {
             if (key.contains("include")) {
                 continue;
             }
-            verifyValue(orderedProperties, key, orderedProperties.get(key, true).toString());
+            verifyValue(orderedProperties, key, orderedProperties.readFirst(key).toString());
         }
 
     }
 
     private void verifyValues() {
         assertTrue(orderedProperties.size() > 0);
-        assertEquals(orderedProperties.size(), orderedProperties.getOrdered().size());
-        Enumeration<?> enumeration = orderedProperties.getProperties().propertyNames();
+        assertEquals(orderedProperties.size(), orderedProperties.getEntries().size());
+        Enumeration<?> enumeration = orderedProperties.propertyNames();
         int count = 0;
         while (enumeration.hasMoreElements()) {
             String key = enumeration.nextElement().toString();
-            verifyValue(key, orderedProperties.get(key).toString());
+            verifyValue(key, orderedProperties.readFirst(key).toString());
             count++;
         }
         assertEquals(orderedProperties.size(), count);
@@ -653,12 +616,12 @@ public class OrderedPropertiesTest {
     }
 
     private void verifyValue(OrderedProperties orderedProperties, String key, String expctedValue) {
-        assertEquals(orderedProperties.getSourcename() + " key=" + key, expctedValue, orderedProperties.get(key));
-        int index = orderedProperties.getOrderedPropertyIndex(key);
+        assertEquals(orderedProperties.getSourcename() + " key=" + key, expctedValue, orderedProperties.readFirst(key));
+        int index = orderedProperties.getOrderedEntriesIndex(key);
         assertTrue(orderedProperties.getSourcename() + " key=" + key, index >= 0);
-        assertEquals(orderedProperties.getSourcename() + " key=" + key, key, orderedProperties.getOrdered().get(index).getKey());
+        assertEquals(orderedProperties.getSourcename() + " key=" + key, key, orderedProperties.getEntries().get(index).getKey());
         if (orderedProperties.isUnique(key)) {
-            assertEquals(orderedProperties.getSourcename() + " key=" + key, expctedValue, orderedProperties.getOrdered().get(index).getValue());
+            assertEquals(orderedProperties.getSourcename() + " key=" + key, expctedValue, orderedProperties.getEntries().get(index).getValue());
 
         }
     }
@@ -686,12 +649,12 @@ public class OrderedPropertiesTest {
 
     private void testConfigfile(String filename) throws IOException {
         File file = new File(filename);
-        OrderedProperties orderedProperties = new OrderedProperties().setIncludeKeyPredicate(includeKeyPredicate);
+        OrderedProperties orderedProperties = new OrderedProperties().setIncludePredicate(includeKeyPredicate);
         orderedProperties.load(file);
 
-        assertTrue(filename, orderedProperties.getOrdered().size() >= orderedProperties.size());
+        assertTrue(filename, orderedProperties.getEntries().size() >= orderedProperties.size());
         if (orderedProperties.size() > 0) {
-            assertTrue(filename, orderedProperties.getOrdered().size() > 0);
+            assertTrue(filename, orderedProperties.getEntries().size() > 0);
         }
 
         System.out.println();
@@ -716,16 +679,10 @@ public class OrderedPropertiesTest {
         System.out.println(indent + vistFilnavn +
                 " global=" + (orderedProperties.size() == properties.size() ? "" : (orderedProperties.size() + " ")) +
                 "lokal=" + properties.size() +
-                (orderedProperties.getIncludedOrderedProperties().size() == 0 ? "" : (" includes=" + orderedProperties.getIncludedOrderedProperties().size())) +
-                (orderedProperties.getIncludingOrderedProperties().size() <= 1 ? "" : (" bruges af=" + orderedProperties.getIncludingOrderedProperties().size())) +
-                (orderedProperties.getOrdered().size() != orderedProperties.size() ? " dublerede=" + (orderedProperties.getOrdered().size() - orderedProperties.size()) : "") +
-//                " sequentialProperties=" + sequentialProperties.getSequential().size() +
-//                " parents=" + sequentialProperties.getParents().size() +
-//                " childs=" + sequentialProperties.getChilds().size() +
+                (orderedProperties.getEntries().size() != orderedProperties.size() ? " dublerede=" + (orderedProperties.getEntries().size() - orderedProperties.size()) : "") +
                 "");
 
         verifyValuesIsEqualsToStandardProperties(orderedProperties);
-        orderedProperties.getIncludedOrderedProperties().forEach(sp -> traverseSequentialProperties(sp, level + 1));
     }
 
 
