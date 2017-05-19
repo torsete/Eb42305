@@ -104,6 +104,47 @@ public class OrderedEntriesTest {
     }
 
     @Test
+    public void testStream() throws IOException {
+        writeFile("test",
+                "",
+                "key1=a",
+                ".key2=b",
+                "key2=b",
+                "key2=c" +
+                        "");
+
+
+        int[] i = new int[1];
+        orderedEntries.enableDotsInKey(true);
+        orderedEntries.asStream(new File(testFolderName + File.separator + "test"))
+                .forEach(e -> {
+                    System.out.println("" + e);
+                    switch (i[0]++) {
+                        case 0:
+                            assertEquals("key1", e.getKey());
+                            assertEquals("a", e.getValue());
+                            break;
+                        case 1:
+                            assertEquals("key1.key2", e.getKey());
+                            assertEquals("b", e.getValue());
+                            break;
+                        case 2:
+                            assertEquals("key2", e.getKey());
+                            assertEquals("b", e.getValue());
+                            break;
+                        case 3:
+                            assertEquals("key2", e.getKey());
+                            assertEquals("c", e.getValue());
+                            break;
+                        default:
+                            break;
+                    }
+                });
+
+
+    }
+
+    @Test
     public void testNormal2() throws IOException {
         writeFile("test",
                 "",
@@ -169,6 +210,7 @@ public class OrderedEntriesTest {
         assertEquals("key1", orderedEntries.getEntries().get(0).getKey());
         assertEquals("key2", orderedEntries.getEntries().get(1).getKey());
         assertEquals("key3", orderedEntries.getEntries().get(2).getKey());
+
     }
 
     @Test
@@ -270,37 +312,6 @@ public class OrderedEntriesTest {
         assertEquals("key1", orderedEntries.getEntries().get(1).getKey());
         assertEquals(0, orderedEntries.getOrderedEntriesIndex("key2"));
         assertEquals(1, orderedEntries.getOrderedEntriesIndex("key1"));
-    }
-
-    @Test
-    public void testFilenames() throws IOException {
-        writeFile("test",
-                "IwrdDocFolder=IWRD/",
-                "DefaultDocFolder=GAIA/",
-                "GaiaTemp=D:\\\\Javapgm\\\\GaiaTemp\\\\",
-                "Lessor=\\\\\\\\10.10.20.18\\\\Lessor4\\\\DATA\\\\",
-                "Notes=N:\\\\",
-                "Notesdata=N:\\\\data\\\\",
-                "BREVSYSTEMFOLDER=ALL/GAIA/",
-                "# Når data fra JTS-processer skal skrives lokalt m/u/backup",
-                "JTSDATAEJBACKUP=D:\\\\GSPTEMP\\\\",
-                "JTSDATABACKUP=D:\\\\GSPDATA\\\\",
-                "");
-
-        orderedEntries.load(new File(testFolderName + File.separator + "test"));
-        assertEquals(9, orderedEntries.size());
-        assertEquals(9, orderedEntries.getEntries().size());
-
-        verifyValue("IwrdDocFolder", "IWRD/");
-        verifyValue("DefaultDocFolder", "GAIA/");
-        verifyValue("GaiaTemp", "D:\\Javapgm\\GaiaTemp\\");
-        verifyValue("Lessor", "\\\\10.10.20.18\\Lessor4\\DATA\\");
-        verifyValue("Notes", "N:\\");
-        verifyValue("Notesdata", "N:\\data\\");
-        verifyValue("BREVSYSTEMFOLDER", "ALL/GAIA/");
-        verifyValue("JTSDATAEJBACKUP", "D:\\GSPTEMP\\");
-        verifyValue("JTSDATABACKUP", "D:\\GSPDATA\\");
-
     }
 
     @Test
@@ -686,5 +697,6 @@ public class OrderedEntriesTest {
     private void writeFile(String filename, String... lines) throws IOException {
         writeFile(filename, Arrays.stream(lines).collect(Collectors.joining("\n")));
     }
+
 
 }
