@@ -8,7 +8,6 @@ import java.io.*;
 import java.util.*;
 import java.util.function.BiFunction;
 import java.util.function.Predicate;
-import java.util.stream.Collectors;
 
 import static junit.framework.TestCase.*;
 import static org.junit.Assert.assertTrue;
@@ -17,7 +16,6 @@ import static org.junit.Assert.assertTrue;
  * Created by Torsten on 18.05.2017.
  */
 public class OrderedPropertiesTest {
-    private String testFolderName;
     private Predicate<Map.Entry<Object, Object>> includeKeyPredicate;
     private OrderedProperties orderedProperties;
 
@@ -27,7 +25,6 @@ public class OrderedPropertiesTest {
     public void setUp() {
         testUtil = new TestUtil(this);
         testUtil.setupTestFolder();
-        testFolderName = testUtil.getTestFolderName();
         includeKeyPredicate = entry -> entry.toString().toLowerCase().contains("include");
         orderedProperties = new OrderedProperties().setIncludePredicate(includeKeyPredicate);
     }
@@ -40,15 +37,15 @@ public class OrderedPropertiesTest {
 
     @Test
     public void testInitial() throws IOException {
-        writeFile("test", "");
+        testUtil.writeFile("test", "");
 
         assertNull(orderedProperties.getSourcename());
         assertEquals(0, orderedProperties.size());
         assertEquals(0, orderedProperties.getEntries().size());
         assertEquals(-1, orderedProperties.getOrderedEntriesIndex("xxx"));
 
-        orderedProperties.load(new File(testFolderName + File.separator + "test"));
-        assertEquals(testFolderName + File.separator + "test", orderedProperties.getSourcename());
+        orderedProperties.load(testUtil.getFile("test"));
+        assertEquals(testUtil.getFoldername("test"), orderedProperties.getSourcename());
         assertEquals(0, orderedProperties.size());
         assertEquals(0, orderedProperties.getEntries().size());
         assertEquals(-1, orderedProperties.getOrderedEntriesIndex("xxx"));
@@ -56,7 +53,7 @@ public class OrderedPropertiesTest {
 
     @Test
     public void testNormal1() throws IOException {
-        writeFile("test",
+        testUtil.writeFile("test",
                 "key1=a",
                 "",
                 "key2=b",
@@ -66,14 +63,14 @@ public class OrderedPropertiesTest {
                 "");
 
         Properties properties = new Properties();
-        properties.load(new FileInputStream(testFolderName + File.separator + "test"));
+        properties.load(testUtil.getInputStream("test"));
         assertEquals(3, properties.size());
         assertEquals("a", properties.get("key1"));
         assertEquals("b", properties.get("key2"));
         assertEquals("cde", properties.get("\""));
 
 
-        orderedProperties.load(new File(testFolderName + File.separator + "test"));
+        orderedProperties.load(testUtil.getFile("test"));
 
         assertEquals(3, orderedProperties.size());
         assertEquals("a", orderedProperties.readFirst("key1"));
@@ -105,7 +102,7 @@ public class OrderedPropertiesTest {
 
     @Test
     public void testNormal2() throws IOException {
-        writeFile("test",
+        testUtil.writeFile("test",
                 "",
                 "key1=a\\",
                 "b\\",
@@ -118,12 +115,12 @@ public class OrderedPropertiesTest {
                 "");
 
         Properties properties = new Properties();
-        properties.load(new FileInputStream(testFolderName + File.separator + "test"));
+        properties.load(testUtil.getInputStream("test"));
         assertEquals(2, properties.size());
         assertEquals("abc", properties.get("key1"));
         assertEquals("d", properties.get("key2"));
 
-        orderedProperties.load(new File(testFolderName + File.separator + "test"));
+        orderedProperties.load(testUtil.getFile("test"));
 
         assertEquals(2, orderedProperties.size());
         assertEquals("abc", orderedProperties.readFirst("key1"));
@@ -137,14 +134,14 @@ public class OrderedPropertiesTest {
 
         List<Integer> orderedLineNumbers = orderedProperties.getLinenumbers();
         assertEquals(2, orderedLineNumbers.size());
-        assertEquals(Integer.valueOf(1), orderedLineNumbers.get(0));
+        assertEquals(Integer.valueOf(3), orderedLineNumbers.get(0));
         assertEquals(Integer.valueOf(8), orderedLineNumbers.get(1));
 
     }
 
     @Test
     public void testDuplicates() throws IOException {
-        writeFile("test",
+        testUtil.writeFile("test",
                 "key1=a",
                 "key1=a",
                 "key1=b",
@@ -152,7 +149,7 @@ public class OrderedPropertiesTest {
                 "key2=d",
                 "");
 
-        orderedProperties.load(new File(testFolderName + File.separator + "test"));
+        orderedProperties.load(testUtil.getFile("test"));
 
         assertEquals(2, orderedProperties.size());
         assertEquals(4, (orderedProperties.get("key1")).size());
@@ -162,7 +159,7 @@ public class OrderedPropertiesTest {
 
     @Test
     public void testNormalBackslash() throws IOException {
-        writeFile("test",
+        testUtil.writeFile("test",
                 "key1=a \\",
                 "1",
                 "key2=b\\\\",
@@ -171,7 +168,7 @@ public class OrderedPropertiesTest {
                 "e \\",
                 "");
 
-        orderedProperties.load(new File(testFolderName + File.separator + "test"));
+        orderedProperties.load(testUtil.getFile("test"));
 
         assertEquals(3, orderedProperties.size());
         assertEquals(3, orderedProperties.getEntries().size());
@@ -198,7 +195,7 @@ public class OrderedPropertiesTest {
          * key=abd
          * key=def
          */
-        String filename = testFolderName + File.separator + "test";
+        String filename = testUtil.getFoldername("test");
 
         Writer writer = new BufferedWriter(new FileWriter(filename));
         writer.write("key=abc");
@@ -246,16 +243,16 @@ public class OrderedPropertiesTest {
         /**
          * Lav  properties-filer:
          */
-        String filename = testFolderName + File.separator + "test";
+        String filename = testUtil.getFoldername("test");
         writer = new BufferedWriter(new FileWriter(filename));
         writer.write("include=test1");
         writer.write("\n");
         writer.write("include=test2");
         writer.close();
-        writer = new BufferedWriter(new FileWriter(testFolderName + File.separator + "test1"));
+        writer = testUtil.getBufferedWriter("test1");
         writer.write("key1=value1");
         writer.close();
-        writer = new BufferedWriter(new FileWriter(testFolderName + File.separator + "test2"));
+        writer = testUtil.getBufferedWriter("test2");
         writer.write("key2=value2");
         writer.write("\n");
         writer.write("key3=value3");
@@ -274,12 +271,12 @@ public class OrderedPropertiesTest {
 
     @Test
     public void testSequence() throws IOException {
-        writeFile("test",
+        testUtil.writeFile("test",
                 "key2=abc",
                 "key1=def",
                 "");
 
-        orderedProperties.load(new File(testFolderName + File.separator + "test"));
+        orderedProperties.load(testUtil.getFile("test"));
         assertEquals(2, orderedProperties.size());
         assertEquals(2, orderedProperties.getEntries().size());
 
@@ -296,7 +293,7 @@ public class OrderedPropertiesTest {
 
     @Test
     public void testFilenames() throws IOException {
-        writeFile("test",
+        testUtil.writeFile("test",
                 "IwrdDocFolder=IWRD/",
                 "DefaultDocFolder=GAIA/",
                 "GaiaTemp=D:\\\\Javapgm\\\\GaiaTemp\\\\",
@@ -309,7 +306,7 @@ public class OrderedPropertiesTest {
                 "JTSDATABACKUP=D:\\\\GSPDATA\\\\",
                 "");
 
-        orderedProperties.load(new File(testFolderName + File.separator + "test"));
+        orderedProperties.load(testUtil.getFile("test"));
         assertEquals(9, orderedProperties.size());
         assertEquals(9, orderedProperties.getEntries().size());
 
@@ -327,49 +324,49 @@ public class OrderedPropertiesTest {
 
     @Test
     public void testContinuation() throws IOException {
-        writeFile("test",
+        testUtil.writeFile("test",
                 "key1=\\",
                 "a",
                 "key2=\\\\",
                 "key3=\\/\\",
                 "");
 
-        orderedProperties.load(new File(testFolderName + File.separator + "test"));
+        orderedProperties.load(testUtil.getFile("test"));
         verifyValues();
 
     }
 
     @Test
     public void test3() throws IOException {
-        writeFile("test",
+        testUtil.writeFile("test",
                 "key",
                 "");
 
-        orderedProperties.load(new File(testFolderName + File.separator + "test"));
+        orderedProperties.load(testUtil.getFile("test"));
         verifyValues();
 
     }
 
     @Test
     public void testIncludeFiles() throws IOException {
-        writeFile("test",
+        testUtil.writeFile("test",
                 "",
                 "include=test1",
                 "include=test2",
                 "key=value",
                 "");
-        writeFile("test1",
+        testUtil.writeFile("test1",
                 "",
                 "key1=value1",
                 "");
-        writeFile("test2",
+        testUtil.writeFile("test2",
                 "",
                 "key2=value2",
                 "key=value2",
                 "");
 
 
-        orderedProperties.load(new File(testFolderName + File.separator + "test"));
+        orderedProperties.load(testUtil.getFile("test"));
 //        assertEquals(1, orderedProperties.size(false));
         assertEquals(3, orderedProperties.size());
         assertEquals(4, orderedProperties.getEntries().size());
@@ -398,32 +395,32 @@ public class OrderedPropertiesTest {
         assertEquals("[value2]", orderedProperties.get("key2").toString());
 
 
-        assertEquals(testFolderName + File.separator + "test", orderedProperties.getSourcename());
+        assertEquals(testUtil.getFoldername("test"), orderedProperties.getSourcename());
 
 
     }
 
     @Test
     public void testIncludeFiles2() throws IOException {
-        writeFile("test",
+        testUtil.writeFile("test",
                 "include=test2",
                 "include=test1",
                 "key=value",
                 "");
-        writeFile("test1",
+        testUtil.writeFile("test1",
                 "key1=value1",
                 "");
-        writeFile("test2",
+        testUtil.writeFile("test2",
                 "key2=value2",
                 "include=test3",
                 "");
-        writeFile("test3",
+        testUtil.writeFile("test3",
                 "key10=10",
                 "key11=11",
                 "");
 
 
-        orderedProperties.load(new File(testFolderName + File.separator + "test"));
+        orderedProperties.load(testUtil.getFile("test"));
 
 
         traverseSequentialProperties(orderedProperties, 0);
@@ -438,14 +435,14 @@ public class OrderedPropertiesTest {
         assertEquals("11", orderedProperties.readFirst("key11"));
 
 
-        assertEquals(testFolderName + File.separator + "test", orderedProperties.getSourcename());
+        assertEquals(testUtil.getFoldername("test"), orderedProperties.getSourcename());
 
     }
 
 
     @Test
     public void testWeiredKeys() throws IOException {
-        writeFile("test",
+        testUtil.writeFile("test",
                 "a=0",
                 "b",
                 "c ",
@@ -453,7 +450,7 @@ public class OrderedPropertiesTest {
                 "e  2",
                 "");
 
-        orderedProperties.load(new File(testFolderName + File.separator + "test"));
+        orderedProperties.load(testUtil.getFile("test"));
         assertEquals(5, orderedProperties.size());
         assertEquals(5, orderedProperties.getEntries().size());
         assertEquals("0", orderedProperties.readFirst("a"));
@@ -474,13 +471,13 @@ public class OrderedPropertiesTest {
             return l.replace('\t', '.');
         };
 
-        writeFile("test",
+        testUtil.writeFile("test",
                 "=0",
                 "\t=1",
                 "\ta\t=2",
                 "");
 
-        orderedProperties.load(new File(testFolderName + File.separator + "test"));
+        orderedProperties.load(testUtil.getFile("test"));
         assertEquals(2, orderedProperties.size());
         assertEquals("2", orderedProperties.readFirst("a"));
         assertEquals("0", orderedProperties.readFirst(""));
@@ -494,7 +491,7 @@ public class OrderedPropertiesTest {
         orderedProperties.clear();
         orderedProperties.enableDotsInKey(true);
         orderedProperties.enableTabsInKey(true);
-        orderedProperties.load(new File(testFolderName + File.separator + "test"));
+        orderedProperties.load(testUtil.getFile("test"));
         assertEquals(3, orderedProperties.getEntries().size());
         assertEquals("0", orderedProperties.readFirst(""));
         assertEquals("1", orderedProperties.readFirst("."));
@@ -508,13 +505,13 @@ public class OrderedPropertiesTest {
 
     @Test
     public void testDotsKeys() throws IOException {
-        writeFile("test",
+        testUtil.writeFile("test",
                 "=0",
                 ".=1",
                 ".a.=2",
                 "");
 
-        orderedProperties.load(new File(testFolderName + File.separator + "test"));
+        orderedProperties.load(testUtil.getFile("test"));
         assertEquals(3, orderedProperties.size());
         assertEquals("0", orderedProperties.readFirst(""));
         assertEquals("1", orderedProperties.readFirst("."));
@@ -528,7 +525,7 @@ public class OrderedPropertiesTest {
 
         orderedProperties.clear();
         orderedProperties.enableDotsInKey(true);
-        orderedProperties.load(new File(testFolderName + File.separator + "test"));
+        orderedProperties.load(testUtil.getFile("test"));
         assertEquals(3, orderedProperties.getEntries().size());
         assertEquals("0", orderedProperties.readFirst(""));
         assertEquals("1", orderedProperties.readFirst("."));
@@ -542,19 +539,19 @@ public class OrderedPropertiesTest {
 
     @Test
     public void testDotsKeys0() throws IOException {
-        writeFile("test",
+        testUtil.writeFile("test",
                 ".=1",
                 "");
 
         orderedProperties.enableDotsInKey(true);
-        orderedProperties.load(new File(testFolderName + File.separator + "test"));
+        orderedProperties.load(testUtil.getFile("test"));
         assertEquals(1, orderedProperties.size());
         assertEquals("1", orderedProperties.readFirst("."));
     }
 
     @Test
     public void testManyDotsKeys() throws IOException {
-        writeFile("test",
+        testUtil.writeFile("test",
                 "root=0",
                 "\tkey1=1",
                 "\t\tkey2=2",
@@ -571,7 +568,7 @@ public class OrderedPropertiesTest {
 
         orderedProperties.enableDotsInKey(true);
         orderedProperties.enableTabsInKey(true);
-        orderedProperties.load(new File(testFolderName + File.separator + "test"));
+        orderedProperties.load(testUtil.getFile("test"));
         List<Map.Entry<Object, Object>> sequential = orderedProperties.getEntries();
         assertEquals(12, sequential.size());
         int i = 0;
@@ -713,18 +710,5 @@ public class OrderedPropertiesTest {
     }
 
 
-    private void writeFile(String filename, String content) throws IOException {
-        Writer writer = new BufferedWriter(new FileWriter(testFolderName + File.separator + filename));
-        writer.write(content);
-        writer.close();
-        System.out.println("******************************");
-        System.out.println(new File(filename).getAbsoluteFile() + ":");
-        System.out.println(content);
-        System.out.println("******************************");
-    }
-
-    private void writeFile(String filename, String... lines) throws IOException {
-        writeFile(filename, Arrays.stream(lines).collect(Collectors.joining("\n")));
-    }
 
 }

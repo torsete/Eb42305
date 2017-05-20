@@ -7,8 +7,10 @@ import org.junit.Test;
 import java.io.*;
 import java.util.*;
 import java.util.function.BiFunction;
+import java.util.function.Consumer;
 import java.util.function.Predicate;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 import static junit.framework.TestCase.*;
 import static org.junit.Assert.assertTrue;
@@ -17,7 +19,6 @@ import static org.junit.Assert.assertTrue;
  * Created by Torsten on 18.05.2017.
  */
 public class OrderedEntriesTest {
-    private String testFolderName;
     private Predicate<Map.Entry<Object, Object>> includeKeyPredicate;
     private OrderedEntries orderedEntries;
 
@@ -27,7 +28,6 @@ public class OrderedEntriesTest {
     public void setUp() {
         testUtil = new TestUtil(this);
         testUtil.setupTestFolder();
-        testFolderName = testUtil.getTestFolderName();
         includeKeyPredicate = entry -> entry.toString().toLowerCase().contains("include");
         orderedEntries = new OrderedEntries().setIncludePredicate(includeKeyPredicate);
     }
@@ -40,15 +40,15 @@ public class OrderedEntriesTest {
 
     @Test
     public void testInitial() throws IOException {
-        writeFile("test", "");
+        testUtil.writeFile("test", "");
 
         assertNull(orderedEntries.getSourcename());
         assertEquals(0, orderedEntries.size());
         assertEquals(0, orderedEntries.getEntries().size());
         assertEquals(-1, orderedEntries.getOrderedEntriesIndex("xxx"));
 
-        orderedEntries.load(new File(testFolderName + File.separator + "test"));
-        assertEquals(testFolderName + File.separator + "test", orderedEntries.getSourcename());
+        orderedEntries.load(testUtil.getFile("test"));
+        assertEquals(testUtil.getFoldername("test"), orderedEntries.getSourcename());
         assertEquals(0, orderedEntries.size());
         assertEquals(0, orderedEntries.getEntries().size());
         assertEquals(-1, orderedEntries.getOrderedEntriesIndex("xxx"));
@@ -56,7 +56,7 @@ public class OrderedEntriesTest {
 
     @Test
     public void testNormal1() throws IOException {
-        writeFile("test",
+        testUtil.writeFile("test",
                 "key1=a",
                 "",
                 "key2=b",
@@ -66,16 +66,21 @@ public class OrderedEntriesTest {
                 "");
 
         Properties properties = new Properties();
-        properties.load(new FileInputStream(testFolderName + File.separator + "test"));
+        properties.load(testUtil.getInputStream("test"));
         assertEquals(3, properties.size());
         assertEquals("a", properties.get("key1"));
         assertEquals("b", properties.get("key2"));
         assertEquals("cde", properties.get("\""));
 
 
-        orderedEntries.load(new File(testFolderName + File.separator + "test"));
+        orderedEntries.load(testUtil.getFile("test"));
 
         assertEquals(3, orderedEntries.size());
+        assertEquals("key1=a", orderedEntries.getEntries().get(0).toString());
+        assertEquals("key2=b", orderedEntries.getEntries().get(1).toString());
+        assertEquals("\"=cde", orderedEntries.getEntries().get(2).toString());
+
+
         assertEquals("a", orderedEntries.readFirst("key1"));
         assertEquals("b", orderedEntries.readFirst("key2"));
         assertEquals("cde", orderedEntries.readFirst("\""));
@@ -103,50 +108,10 @@ public class OrderedEntriesTest {
         assertEquals(-1, orderedEntries.getOrderedEntriesIndex("xxx"));
     }
 
-    @Test
-    public void testStream() throws IOException {
-        writeFile("test",
-                "",
-                "key1=a",
-                ".key2=b",
-                "key2=b",
-                "key2=c" +
-                        "");
-
-
-        int[] i = new int[1];
-        orderedEntries.enableDotsInKey(true);
-        orderedEntries.asStream(new File(testFolderName + File.separator + "test"))
-                .forEach(e -> {
-                    System.out.println("" + e);
-                    switch (i[0]++) {
-                        case 0:
-                            assertEquals("key1", e.getKey());
-                            assertEquals("a", e.getValue());
-                            break;
-                        case 1:
-                            assertEquals("key1.key2", e.getKey());
-                            assertEquals("b", e.getValue());
-                            break;
-                        case 2:
-                            assertEquals("key2", e.getKey());
-                            assertEquals("b", e.getValue());
-                            break;
-                        case 3:
-                            assertEquals("key2", e.getKey());
-                            assertEquals("c", e.getValue());
-                            break;
-                        default:
-                            break;
-                    }
-                });
-
-
-    }
 
     @Test
     public void testNormal2() throws IOException {
-        writeFile("test",
+        testUtil.writeFile("test",
                 "",
                 "key1=a\\",
                 "b\\",
@@ -159,12 +124,12 @@ public class OrderedEntriesTest {
                 "");
 
         Properties properties = new Properties();
-        properties.load(new FileInputStream(testFolderName + File.separator + "test"));
+        properties.load(testUtil.getInputStream("test"));
         assertEquals(2, properties.size());
         assertEquals("abc", properties.get("key1"));
         assertEquals("d", properties.get("key2"));
 
-        orderedEntries.load(new File(testFolderName + File.separator + "test"));
+        orderedEntries.load(testUtil.getFile("test"));
 
         assertEquals(2, orderedEntries.size());
         assertEquals("abc", orderedEntries.readFirst("key1"));
@@ -178,14 +143,14 @@ public class OrderedEntriesTest {
 
         List<Integer> orderedLineNumbers = orderedEntries.getLinenumbers();
         assertEquals(2, orderedLineNumbers.size());
-        assertEquals(Integer.valueOf(1), orderedLineNumbers.get(0));
+        assertEquals(Integer.valueOf(3), orderedLineNumbers.get(0));
         assertEquals(Integer.valueOf(8), orderedLineNumbers.get(1));
 
     }
 
     @Test
     public void testNormalBackslash() throws IOException {
-        writeFile("test",
+        testUtil.writeFile("test",
                 "key1=a \\",
                 "1",
                 "key2=b\\\\",
@@ -194,7 +159,7 @@ public class OrderedEntriesTest {
                 "e \\",
                 "");
 
-        orderedEntries.load(new File(testFolderName + File.separator + "test"));
+        orderedEntries.load(testUtil.getFile("test"));
 
         assertEquals(3, orderedEntries.size());
         assertEquals(3, orderedEntries.getEntries().size());
@@ -222,7 +187,7 @@ public class OrderedEntriesTest {
          * key=abd
          * key=def
          */
-        String filename = testFolderName + File.separator + "test";
+        String filename = testUtil.getFoldername("test");
 
         Writer writer = new BufferedWriter(new FileWriter(filename));
         writer.write("key=abc");
@@ -266,23 +231,22 @@ public class OrderedEntriesTest {
         /**
          * Lav  properties-filer:
          */
-        String filename = testFolderName + File.separator + "test";
-        writer = new BufferedWriter(new FileWriter(filename));
+        writer = testUtil.getBufferedWriter("test");
         writer.write("include=test1");
         writer.write("\n");
         writer.write("include=test2");
         writer.close();
-        writer = new BufferedWriter(new FileWriter(testFolderName + File.separator + "test1"));
+        writer = testUtil.getBufferedWriter("test1");
         writer.write("key1=value1");
         writer.close();
-        writer = new BufferedWriter(new FileWriter(testFolderName + File.separator + "test2"));
+        writer = testUtil.getBufferedWriter("test2");
         writer.write("key2=value2");
         writer.write("\n");
         writer.write("key3=value3");
         writer.close();
 
         OrderedEntries orderedEntries = new OrderedEntries();
-        File inputFile = new File(filename);
+        File inputFile = testUtil.getFile("test");
         orderedEntries.load(inputFile);  // File fordi der skal være et filsysten at læse fra
 
         assertEquals(3, orderedEntries.getEntries().size());
@@ -294,12 +258,12 @@ public class OrderedEntriesTest {
 
     @Test
     public void testSequence() throws IOException {
-        writeFile("test",
+        testUtil.writeFile("test",
                 "key2=abc",
                 "key1=def",
                 "");
 
-        orderedEntries.load(new File(testFolderName + File.separator + "test"));
+        orderedEntries.load(testUtil.getFile("test"));
         assertEquals(2, orderedEntries.size());
         assertEquals(2, orderedEntries.getEntries().size());
 
@@ -316,45 +280,45 @@ public class OrderedEntriesTest {
 
     @Test
     public void testContinuation() throws IOException {
-        writeFile("test",
+        testUtil.writeFile("test",
                 "key1=\\",
                 "a",
                 "key2=\\\\",
                 "key3=\\/\\",
                 "");
 
-        orderedEntries.load(new File(testFolderName + File.separator + "test"));
+        orderedEntries.load(testUtil.getFile("test"));
         verifyValues();
 
     }
 
     @Test
     public void test3() throws IOException {
-        writeFile("test",
+        testUtil.writeFile("test",
                 "key",
                 "");
 
-        orderedEntries.load(new File(testFolderName + File.separator + "test"));
+        orderedEntries.load(testUtil.getFile("test"));
         verifyValues();
 
     }
 
     @Test
     public void testIncludeFiles() throws IOException {
-        writeFile("test",
+        testUtil.writeFile("test",
                 "include=test1",
                 "include=test2",
                 "key=value",
                 "");
-        writeFile("test1",
+        testUtil.writeFile("test1",
                 "key1=value1",
                 "");
-        writeFile("test2",
+        testUtil.writeFile("test2",
                 "key2=value2",
                 "");
 
 
-        orderedEntries.load(new File(testFolderName + File.separator + "test"));
+        orderedEntries.load(testUtil.getFile("test"));
 //        assertEquals(1, orderedEntries.size(false));
         assertEquals(3, orderedEntries.size());
         assertEquals(3, orderedEntries.getEntries().size());
@@ -377,32 +341,32 @@ public class OrderedEntriesTest {
         assertEquals(1, orderedEntries.getOrderedEntriesIndex("key2"));
 
 
-        assertEquals(testFolderName + File.separator + "test", orderedEntries.getSourcename());
+        assertEquals(testUtil.getFoldername("test"), orderedEntries.getSourcename());
 
 
     }
 
     @Test
     public void testIncludeFiles2() throws IOException {
-        writeFile("test",
+        testUtil.writeFile("test",
                 "include=test2",
                 "include=test1",
                 "key=value",
                 "");
-        writeFile("test1",
+        testUtil.writeFile("test1",
                 "key1=value1",
                 "");
-        writeFile("test2",
+        testUtil.writeFile("test2",
                 "key2=value2",
                 "include=test3",
                 "");
-        writeFile("test3",
+        testUtil.writeFile("test3",
                 "key10=10",
                 "key11=11",
                 "");
 
 
-        orderedEntries.load(new File(testFolderName + File.separator + "test"));
+        orderedEntries.load(testUtil.getFile("test"));
 
 
         traverseSequentialProperties(orderedEntries, 0);
@@ -417,14 +381,14 @@ public class OrderedEntriesTest {
         assertEquals("11", orderedEntries.readFirst("key11"));
 
 
-        assertEquals(testFolderName + File.separator + "test", orderedEntries.getSourcename());
+        assertEquals(testUtil.getFoldername("test"), orderedEntries.getSourcename());
 
     }
 
 
     @Test
     public void testWeiredKeys() throws IOException {
-        writeFile("test",
+        testUtil.writeFile("test",
                 "a=0",
                 "b",
                 "c ",
@@ -432,7 +396,7 @@ public class OrderedEntriesTest {
                 "e  2",
                 "");
 
-        orderedEntries.load(new File(testFolderName + File.separator + "test"));
+        orderedEntries.load(testUtil.getFile("test"));
         assertEquals(5, orderedEntries.size());
         assertEquals(5, orderedEntries.getEntries().size());
         assertEquals("0", orderedEntries.readFirst("a"));
@@ -453,13 +417,13 @@ public class OrderedEntriesTest {
             return l.replace('\t', '.');
         };
 
-        writeFile("test",
+        testUtil.writeFile("test",
                 "=0",
                 "\t=1",
                 "\ta\t=2",
                 "");
 
-        orderedEntries.load(new File(testFolderName + File.separator + "test"));
+        orderedEntries.load(testUtil.getFile("test"));
         assertEquals("2", orderedEntries.readFirst("a"));
         assertEquals("0", orderedEntries.readFirst(""));
 
@@ -472,7 +436,7 @@ public class OrderedEntriesTest {
         orderedEntries.clear();
         orderedEntries.enableDotsInKey(true);
         orderedEntries.enableTabsInKey(true);
-        orderedEntries.load(new File(testFolderName + File.separator + "test"));
+        orderedEntries.load(testUtil.getFile("test"));
         assertEquals(3, orderedEntries.size());
         assertEquals("0", orderedEntries.readFirst(""));
         assertEquals("1", orderedEntries.readFirst("."));
@@ -486,13 +450,13 @@ public class OrderedEntriesTest {
 
     @Test
     public void testDotsKeys() throws IOException {
-        writeFile("test",
+        testUtil.writeFile("test",
                 "=0",
                 ".=1",
                 ".a.=2",
                 "");
 
-        orderedEntries.load(new File(testFolderName + File.separator + "test"));
+        orderedEntries.load(testUtil.getFile("test"));
         assertEquals(3, orderedEntries.size());
         assertEquals("0", orderedEntries.readFirst(""));
         assertEquals("1", orderedEntries.readFirst("."));
@@ -506,7 +470,7 @@ public class OrderedEntriesTest {
 
         orderedEntries.clear();
         orderedEntries.enableDotsInKey(true);
-        orderedEntries.load(new File(testFolderName + File.separator + "test"));
+        orderedEntries.load(testUtil.getFile("test"));
         assertEquals(3, orderedEntries.size());
         assertEquals("0", orderedEntries.readFirst(""));
         assertEquals("1", orderedEntries.readFirst("."));
@@ -520,19 +484,19 @@ public class OrderedEntriesTest {
 
     @Test
     public void testDotsKeys0() throws IOException {
-        writeFile("test",
+        testUtil.writeFile("test",
                 ".=1",
                 "");
 
         orderedEntries.enableDotsInKey(true);
-        orderedEntries.load(new File(testFolderName + File.separator + "test"));
+        orderedEntries.load(testUtil.getFile("test"));
         assertEquals(1, orderedEntries.size());
         assertEquals("1", orderedEntries.readFirst("."));
     }
 
     @Test
     public void testManyDotsKeys() throws IOException {
-        writeFile("test",
+        testUtil.writeFile("test",
                 "root=0",
                 "\tkey1=1",
                 "\t\tkey2=2",
@@ -549,7 +513,7 @@ public class OrderedEntriesTest {
 
         orderedEntries.enableDotsInKey(true);
         orderedEntries.enableTabsInKey(true);
-        orderedEntries.load(new File(testFolderName + File.separator + "test"));
+        orderedEntries.load(testUtil.getFile("test"));
         List<Map.Entry<Object, Object>> sequential = orderedEntries.getEntries();
         assertEquals(12, sequential.size());
         int i = 0;
@@ -570,6 +534,165 @@ public class OrderedEntriesTest {
         String s = orderedEntries.toString().replace(',', '\n');
         System.out.println(s);
     }
+
+    @Test
+    public void testStream() throws IOException {
+        testUtil.writeFile("test",
+                "",
+                "key1=a",
+                ".key2=b",
+                "key2=b",
+                "key2=c" +
+                        "");
+
+
+        int[] i = new int[1];
+        orderedEntries.enableDotsInKey(true);
+        orderedEntries.stream(testUtil.getFile("test"))
+                .forEach(e -> {
+                    System.out.println("" + e);
+                    switch (i[0]++) {
+                        case 0:
+                            assertEquals("key1", e.getKey());
+                            assertEquals("a", e.getValue());
+                            break;
+                        case 1:
+                            assertEquals("key1.key2", e.getKey());
+                            assertEquals("b", e.getValue());
+                            break;
+                        case 2:
+                            assertEquals("key2", e.getKey());
+                            assertEquals("b", e.getValue());
+                            break;
+                        case 3:
+                            assertEquals("key2", e.getKey());
+                            assertEquals("c", e.getValue());
+                            break;
+                        default:
+                            break;
+                    }
+                });
+
+
+    }
+
+    @Test
+    public void testStreamSeparation() throws IOException {
+        testUtil.writeFile("test",
+                "",
+                "key1=a",
+                ".key11=b",
+                ".key12=c",
+                "key2=d",
+                "");
+
+
+        int[] i = new int[1];
+        orderedEntries.enableDotsInKey(true);
+        orderedEntries.setPartitionPredicate(entrySupplier -> {
+            boolean endOfStream = entrySupplier.getCurrentEntry() != null && entrySupplier.getNextEntry() != null &&
+                    !entrySupplier.getCurrentKeyParts().get(0).equals(entrySupplier.getNextKeyParts().get(0));
+            switch (i[0]++) {
+                case 0:
+                    assertFalse(endOfStream);
+                    break;
+                case 1:
+                    assertFalse(endOfStream);
+                    break;
+                case 2:
+                    assertTrue(endOfStream);
+                    break;
+                case 3:
+                    assertTrue(endOfStream);
+                    break;
+                default:
+                    break;
+            }
+
+            return endOfStream;
+        });
+
+        orderedEntries.stream(testUtil.getFile("test"))
+                .forEach(e -> {
+
+                });
+    }
+
+    @Test
+    public void testStreamOfStream() throws IOException {
+        testUtil.writeFile("test",
+                "",
+                "key1=a",
+                ".key11=b",
+                ".key12=c",
+                "key2=d",
+                ".key21=e",
+                ".key22=e",
+                ".key23=e",
+                ".key24=e",
+                ".key25=e",
+                ".key26=e",
+                "");
+
+
+        int[] i = new int[1];
+        orderedEntries.enableDotsInKey(true);
+        orderedEntries.setPartitionPredicate(entrySupplier -> entrySupplier.getNextKeyParts().size() == 1);
+
+        int[] streamIndex = new int[1];
+        int[] subStreamIndex = new int[1000];
+        Stream<Stream<Map.Entry<Object, Object>>> streams = orderedEntries.streams(testUtil.getFile("test"));
+        streams.forEach(s -> {
+            s.forEach(e -> {
+                System.out.println(streamIndex[0] + ":" + subStreamIndex[streamIndex[0]] + " " + e);
+                subStreamIndex[streamIndex[0]]++;
+            });
+            streamIndex[0]++;
+        });
+
+        assertEquals(2, streamIndex[0]);
+        assertEquals(3, subStreamIndex[0]);
+        assertEquals(7, subStreamIndex[1]);
+    }
+
+    @Test
+    public void showStreamCase() throws IOException {
+        testUtil.writeFile("test",
+                "form      Name of form 1",
+                ".id       formId1",
+                ".h        Header 1",
+                ".input    Enter text",
+                "..id      inputId",
+                "..validation code1",
+                "form      Name of form 2",
+                ".id       formId1",
+                ".h        Header 1",
+                ".input    Enter text",
+                "..id      inputId",
+                "..validation code1",
+                ".tralier  A text",
+                "");
+
+        Consumer<Stream<Map.Entry<Object, Object>>> formEntriesConsumer = s -> {
+            OrderedEntries orderedEntries = new OrderedEntries();
+            s.forEach(e -> orderedEntries.addProperty(e, 0));
+            System.out.println();
+            System.out.println("Input for the form with name \"" + orderedEntries.getEntries().get(0).getValue() + "\":");
+            System.out.println("-------------------");
+            System.out.println(orderedEntries.getEntries().stream().map(e -> e.toString()).collect(Collectors.joining("\n")));
+            System.out.println("-------------------");
+        };
+
+        orderedEntries.enableDotsInKey(true);
+        orderedEntries.enableTabsInKey(true);
+        orderedEntries.setPartitionPredicate(entrySupplier -> entrySupplier.getNextEntry() != null && entrySupplier.getNextEntry().getKey().equals("form"));
+
+        Stream<Stream<Map.Entry<Object, Object>>> streams = orderedEntries.streams(testUtil.getFile("test"));
+        streams.forEach(s -> {
+            formEntriesConsumer.accept(s);
+        });
+    }
+
 
     private void verifyEntry(String expectedKey, String expectedValue, Map.Entry<Object, Object> entry) {
         assertEquals(expectedKey, entry.getKey().toString());
@@ -681,21 +804,6 @@ public class OrderedEntriesTest {
                 "");
 
         verifyValuesIsEqualsToStandardProperties(orderedEntries);
-    }
-
-
-    private void writeFile(String filename, String content) throws IOException {
-        Writer writer = new BufferedWriter(new FileWriter(testFolderName + File.separator + filename));
-        writer.write(content);
-        writer.close();
-        System.out.println("******************************");
-        System.out.println(new File(filename).getAbsoluteFile() + ":");
-        System.out.println(content);
-        System.out.println("******************************");
-    }
-
-    private void writeFile(String filename, String... lines) throws IOException {
-        writeFile(filename, Arrays.stream(lines).collect(Collectors.joining("\n")));
     }
 
 

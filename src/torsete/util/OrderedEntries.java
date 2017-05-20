@@ -2,26 +2,24 @@ package torsete.util;
 
 import java.io.*;
 import java.nio.charset.StandardCharsets;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Map;
+import java.util.Optional;
 import java.util.function.BiConsumer;
-import java.util.function.Consumer;
 import java.util.function.Predicate;
 import java.util.stream.Stream;
-import java.util.stream.StreamSupport;
 
 public class OrderedEntries {
-    private List<Map.Entry<Object, Object>> entries;
-    private List<Integer> linenumbers;
-    private List<OrderedEntries> includingOrderedEntries;
+    protected List<Map.Entry<Object, Object>> entries;
+    protected List<Integer> linenumbers;
+    protected List<OrderedEntries> includingOrderedEntries;
 
-    private Predicate<Map.Entry<Object, Object>> includePredicate;
-    private BiConsumer<Map.Entry<Object, Object>, Integer> entryConsumer;
-    private EntrySupplier entrySupplier;
-    private boolean isTabsInKeyEnabled;
-    private boolean isDotsInKeyEnabled;
-    private String sourcename;
-
-    private boolean isStreaming;
+    protected Predicate<Map.Entry<Object, Object>> includePredicate;
+    protected BiConsumer<Map.Entry<Object, Object>, Integer> entryConsumer;
+    protected BiConsumer<Map.Entry<Object, Object>, Map.Entry<Object, Object>> entryLookaheadConsumer;
+    protected EntrySupplier entrySupplier;
+    protected String sourcename;
 
     public OrderedEntries() {
         clear();
@@ -31,26 +29,29 @@ public class OrderedEntries {
         entries = new ArrayList<>();
         linenumbers = new ArrayList<>();
         includingOrderedEntries = new ArrayList<>();
-        enableTabsInKey(false);
-        enableDotsInKey(false);
 
         includePredicate = entry -> entry.getKey().toString().toLowerCase().equals("include");
         entryConsumer = (e, l) -> {
         };
+        entryLookaheadConsumer = (e1, e2) -> {
+        };
         entrySupplier = new EntrySupplier();
 
-        isStreaming = false;
+        enableTabsInKey(false);
+        enableDotsInKey(false);
     }
 
     public synchronized void load(String string) throws IOException {
         StringReader stringReader = new StringReader(string);
         load(stringReader);
         stringReader.close();
+        System.out.println("load() StringReader closed");
     }
 
     public synchronized void load(InputStream inputStream) throws IOException {
         load(new InputStreamReader(inputStream));
         inputStream.close();
+        System.out.println("load() InputStream closed");
     }
 
     /**
@@ -66,97 +67,71 @@ public class OrderedEntries {
             load(fileInputStream);
         } finally {
             fileInputStream.close();
+            System.out.println("streams() FileInputStream closed");
         }
         return this;
     }
 
+
     public synchronized void load(Reader reader) throws IOException {
-        entrySupplier
-                .setReader(reader)
-                .enableDotsInKey(isDotsInKeyEnabled)
-                .enableTabsInKey(isTabsInKeyEnabled);
+        entrySupplier.setReader(reader);
         Map.Entry<Object, Object> entry;
         do {
-            entry = processNextEntry();
+            entry = processEntry();
         } while (entry != null);
     }
 
-
-    public Stream<Map.Entry<Object, Object>> asStream(Reader reader) throws IOException {
-        return asStream(reader, () -> {
-            try {
-                reader.close();
-            } catch (IOException e) {
-                throw new RuntimeException(e);
-            }
-        });
-    }
-
-    public Stream<Map.Entry<Object, Object>> asStream(Reader reader, Runnable onClose) {
-        entrySupplier
-                .setReader(reader)
-                .enableDotsInKey(isDotsInKeyEnabled)
-                .enableTabsInKey(isTabsInKeyEnabled);
-        class EntrySpliterator extends Spliterators.AbstractSpliterator<Map.Entry<Object, Object>> {
-
-            protected EntrySpliterator(long est, int additionalCharacteristics) {
-                super(est, additionalCharacteristics);
-            }
-
-            @Override
-            public boolean tryAdvance(Consumer<? super Map.Entry<Object, Object>> action) {
-                Map.Entry<Object, Object> nextEentry = processNextEntry();
-                if (nextEentry == null) {
-                    onClose.run();
-                    return false;
-                }
-                action.accept(nextEentry);
-                return true;
-            }
-        }
-        isStreaming = true;
-        EntrySpliterator s0 = new EntrySpliterator(1, 2);
-        Stream<Map.Entry<Object, Object>> stream = StreamSupport.stream(s0, false);
-        return stream;
-    }
-
-    /**
-     * Required if using includes
-     *
-     * @param file
-     * @throws IOException
-     */
-    public synchronized Stream<Map.Entry<Object, Object>> asStream(File file) throws IOException {
-        sourcename = file.getAbsolutePath();
+    public synchronized Stream<Map.Entry<Object, Object>> stream(File file) throws IOException {
+        setSourcename(file.getAbsolutePath());
         FileInputStream fileInputStream = new FileInputStream(file);
-        return asStream(fileInputStream);
+        return stream(fileInputStream);
     }
 
-    public synchronized Stream<Map.Entry<Object, Object>> asStream(InputStream inputStream) throws IOException {
-        return asStream(new InputStreamReader(inputStream), () -> {
+    public synchronized Stream<Stream<Map.Entry<Object, Object>>> streams(File file) throws IOException {
+        setSourcename(file.getAbsolutePath());
+        FileInputStream fileInputStream = new FileInputStream(file);
+        return streams(fileInputStream);
+    }
+
+
+    public synchronized Stream<Map.Entry<Object, Object>> stream(InputStream inputStream) throws IOException {
+        InputStreamReader reader = new InputStreamReader(inputStream);
+        getEntrySupplier().setReader(reader);
+        return newStream(() -> {
             try {
                 inputStream.close();
+                System.out.println("stream() InputStream closed");
             } catch (IOException e) {
                 throw new RuntimeException(e);
             }
         });
     }
 
-    private Map.Entry<Object, Object> processNextEntry() {
-        Map.Entry<Object, Object> entry = entrySupplier.get();
-        if (entry != null) {
-            boolean isInclude = includePredicate.test(entry);
-            if (isInclude) {
-                if (sourcename == null) {
-                    throw new IllegalArgumentException("Source is missing");
-                }
-                includeProperties(entry);
-            } else {
-                addProperty(entry, entrySupplier.getLineNumber());
+    public synchronized Stream<Stream<Map.Entry<Object, Object>>> streams(InputStream inputStream) throws IOException {
+        InputStreamReader reader = new InputStreamReader(inputStream);
+        getEntrySupplier().setReader(reader);
+        return newStreams(() -> {
+            try {
+                inputStream.close();
+                System.out.println("streams() InputStream closed");
+            } catch (IOException e) {
+                throw new RuntimeException(e);
             }
-        }
-        return entry;
+        });
     }
+
+    public Stream<Map.Entry<Object, Object>> stream(Reader reader) throws IOException {
+        getEntrySupplier().setReader(reader);
+        return newStream(() -> {
+            try {
+                reader.close();
+                System.out.println("stream() Reader closed");
+            } catch (IOException e) {
+                throw new RuntimeException(e);
+            }
+        });
+    }
+
 
     /**
      * Predicate for keys identifying another property file to be included
@@ -173,15 +148,45 @@ public class OrderedEntries {
         return this;
     }
 
+    public OrderedEntries setEntryLookaheadConsumer(BiConsumer<Map.Entry<Object, Object>, Map.Entry<Object, Object>> entryLookaheadConsumer) {
+        this.entryLookaheadConsumer = entryLookaheadConsumer;
+        return this;
+    }
+
 
     public OrderedEntries enableTabsInKey(boolean enabled) {
-        isTabsInKeyEnabled = enabled;
+        entrySupplier.enableTabsInKey(enabled);
         return this;
     }
 
     public OrderedEntries enableDotsInKey(boolean enabled) {
-        isDotsInKeyEnabled = enabled;
+        entrySupplier.enableDotsInKey(enabled);
         return this;
+    }
+
+    public BiConsumer<Map.Entry<Object, Object>, Integer> getEntryConsumer() {
+        return entryConsumer;
+    }
+
+    public BiConsumer<Map.Entry<Object, Object>, Map.Entry<Object, Object>> getEntryLookaheadConsumer() {
+        return entryLookaheadConsumer;
+    }
+
+    public EntrySupplier getEntrySupplier() {
+        return entrySupplier;
+    }
+
+    public boolean isTabsInKeyEnabled() {
+        return entrySupplier.isTabsInKeyEnabled();
+    }
+
+    public boolean isDotsInKeyEnabled() {
+        return entrySupplier.isDotsInKeyEnabled();
+    }
+
+
+    public void setSourcename(String sourcename) {
+        this.sourcename = sourcename;
     }
 
     /**
@@ -223,7 +228,6 @@ public class OrderedEntries {
         return entryOptional.isPresent() ? entryOptional.get().getValue() : null;
     }
 
-
     public List<Map.Entry<Object, Object>> getEntries() {
         return entries;
     }
@@ -244,7 +248,7 @@ public class OrderedEntries {
         StringBuilder sb = new StringBuilder();
         for (Map.Entry e : entries) {
             String key = e.getKey().toString();
-            if (isTabsInKeyEnabled) {
+            if (isTabsInKeyEnabled()) {
                 key = key.replace('.', '\t');
             }
             sb.append(new String((key + assignString + e.getValue() + "\n").getBytes(), StandardCharsets.ISO_8859_1));
@@ -254,6 +258,22 @@ public class OrderedEntries {
 
     public String getSourcename() {
         return sourcename;
+    }
+
+    protected Map.Entry<Object, Object> processEntry() {
+        Map.Entry<Object, Object> entry = entrySupplier.get();
+        if (entry != null) {
+            boolean isInclude = includePredicate.test(entry);
+            if (isInclude) {
+                if (sourcename == null) {
+                    throw new IllegalArgumentException("Source is missing");
+                }
+                includeProperties(entry);
+            } else {
+                addProperty(entry, entrySupplier.getCurrentLineNumber());
+            }
+        }
+        return entry;
     }
 
     /**
@@ -274,9 +294,10 @@ public class OrderedEntries {
     private void includeProperties(Map.Entry<Object, Object> entry) {
         OrderedEntries includedOrderedEntries = new OrderedEntries()
                 .setEntryConsumer(entryConsumer)
+                .setEntryLookaheadConsumer(entryLookaheadConsumer)
                 .setIncludePredicate(includePredicate)
-                .enableDotsInKey(isDotsInKeyEnabled)
-                .enableTabsInKey(isTabsInKeyEnabled);
+                .enableDotsInKey(isDotsInKeyEnabled())
+                .enableTabsInKey(isTabsInKeyEnabled());
 
         String includeSourcename = getAbsolutePath(entry.getValue().toString());
         if (getIncludingProperties(includeSourcename) != null) {
@@ -292,13 +313,11 @@ public class OrderedEntries {
     }
 
 
-    private synchronized void addProperty(Map.Entry<Object, Object> entry, Integer lineNumber) {
-        entryConsumer.accept(entry, lineNumber);
-        if (isStreaming) {
-            return;
-        }
+    protected synchronized void addProperty(Map.Entry<Object, Object> entry, Integer lineNumber) {
         this.linenumbers.add(lineNumber);
         this.entries.add(entry);
+        entryConsumer.accept(entry, lineNumber);
+        entryLookaheadConsumer.accept(entry, entrySupplier.getNextEntry());
     }
 
 
@@ -318,6 +337,30 @@ public class OrderedEntries {
         return new File(filename).getAbsolutePath();
     }
 
+    public void setPartitionPredicate(Predicate<EntrySupplier> partitionPredicate) {
+        entrySupplier.setPartitionPredicate(partitionPredicate);
+    }
 
+
+    Stream<Map.Entry<Object, Object>> newStream(Runnable onClose) {
+        return new EntrySpliterator(this, 1, 2).createStream(onClose);
+    }
+
+    Stream<Stream<Map.Entry<Object, Object>>> newStreams(Runnable onClose) {
+        return new StreamSpliterator(this, 1, 2).createStreams(onClose);
+    }
+
+    Map.Entry<Object, Object> getNextEntry() {
+        return entrySupplier.getNextEntry();
+
+    }
+
+    public boolean isLastEntry() {
+        return entrySupplier.isLastEntry();
+    }
+
+    public boolean isLastEntryInPartition() {
+        return entrySupplier.isLastEntryInPartition();
+    }
 }
 
