@@ -167,14 +167,6 @@ public class OrderedEntries {
         return this;
     }
 
-    public BiConsumer<Map.Entry<Object, Object>, Integer> getEntryConsumer() {
-        return entryConsumer;
-    }
-
-    public BiConsumer<Map.Entry<Object, Object>, Map.Entry<Object, Object>> getEntryLookaheadConsumer() {
-        return entryLookaheadConsumer;
-    }
-
     public EntrySupplier getEntrySupplier() {
         return entrySupplier;
     }

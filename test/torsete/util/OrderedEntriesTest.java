@@ -292,6 +292,10 @@ public class OrderedEntriesTest {
                         "key2>\\\n" +
                         "key3>/\n",
                 orderedEntries.getOrderedAsString(">"));
+        assertEquals("key1=a\n" +
+                        "key2=\\\n" +
+                        "key3=/\n",
+                orderedEntries.getOrderedAsString());
         verifyValues();
 
     }
@@ -450,6 +454,16 @@ public class OrderedEntriesTest {
         verifyEntry("", "0", orderedEntries.getEntries().get(0));
         verifyEntry(".", "1", orderedEntries.getEntries().get(1));
         verifyEntry(".a", "2", orderedEntries.getEntries().get(2));
+
+        assertEquals("=0\n" +
+                        "\t=1\n" +
+                        "\ta=2\n",
+                orderedEntries.getOrderedAsString());
+        orderedEntries.enableTabsInKey(false);
+        assertEquals("=0\n" +
+                        ".=1\n" +
+                        ".a=2\n",
+                orderedEntries.getOrderedAsString());
     }
 
     @Test
