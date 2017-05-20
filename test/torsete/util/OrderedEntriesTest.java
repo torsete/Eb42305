@@ -285,9 +285,13 @@ public class OrderedEntriesTest {
                 "a",
                 "key2=\\\\",
                 "key3=\\/\\",
-                "");
+                " ");
 
         orderedEntries.load(testUtil.getFile("test"));
+        assertEquals("key1>a\n" +
+                        "key2>\\\n" +
+                        "key3>/\n",
+                orderedEntries.getOrderedAsString(">"));
         verifyValues();
 
     }
@@ -667,10 +671,14 @@ public class OrderedEntriesTest {
                 "form      Name of form 2",
                 ".id       formId1",
                 ".h        Header 1",
+                ".text     dsasadadsasd",
+                ".text     dds erre fgg54 ghg",
+                ".....text     dds erre fgg54 ghg",
+                ".text     1123 vfd  bffgfgfgggb  ffg",
                 ".input    Enter text",
                 "..id      inputId",
                 "..validation code1",
-                ".tralier  A text",
+                ".trailerr  A text",
                 "");
 
         Consumer<Stream<Map.Entry<Object, Object>>> formEntriesConsumer = s -> {

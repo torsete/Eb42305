@@ -109,12 +109,6 @@ class EntrySupplier implements Supplier<Map.Entry<Object, Object>> {
         if (nextEntry == null) {
             return true;
         }
-        if (currentEntry == null && nextEntry != null) {
-            return false;
-        }
-        if (nextEntry == null) {
-            return true;
-        }
         return partitionPredicate.test(this);
     }
 
@@ -213,9 +207,6 @@ class EntrySupplier implements Supplier<Map.Entry<Object, Object>> {
     private boolean isLineToBeContinued(String line) {
         if (line.length() == 0 || line.charAt(line.length() - 1) != '\\') {
             return false;
-        }
-        if (line.length() == 1) {
-            return true;
         }
         return line.charAt(line.length() - 2) != '\\';
     }

@@ -26,7 +26,8 @@ public class OrderedPropertiesTest {
         testUtil = new TestUtil(this);
         testUtil.setupTestFolder();
         includeKeyPredicate = entry -> entry.toString().toLowerCase().contains("include");
-        orderedProperties = new OrderedProperties().setIncludePredicate(includeKeyPredicate);
+        orderedProperties = new OrderedProperties();
+        orderedProperties.setIncludePredicate(includeKeyPredicate);
     }
 
     @After
@@ -136,6 +137,9 @@ public class OrderedPropertiesTest {
         assertEquals(2, orderedLineNumbers.size());
         assertEquals(Integer.valueOf(3), orderedLineNumbers.get(0));
         assertEquals(Integer.valueOf(8), orderedLineNumbers.get(1));
+
+        assertEquals(2, orderedProperties.size());
+        assertEquals(2, orderedProperties.entrySet().size());
 
     }
 
@@ -673,7 +677,8 @@ public class OrderedPropertiesTest {
 
     private void testConfigfile(String filename) throws IOException {
         File file = new File(filename);
-        OrderedProperties orderedProperties = new OrderedProperties().setIncludePredicate(includeKeyPredicate);
+        OrderedProperties orderedProperties = new OrderedProperties();
+        orderedProperties.setIncludePredicate(includeKeyPredicate);
         orderedProperties.load(file);
 
         assertTrue(filename, orderedProperties.getEntries().size() >= orderedProperties.size());
@@ -708,7 +713,6 @@ public class OrderedPropertiesTest {
 
         verifyValuesIsEqualsToStandardProperties(orderedProperties);
     }
-
 
 
 }

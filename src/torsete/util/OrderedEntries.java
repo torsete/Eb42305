@@ -21,6 +21,8 @@ public class OrderedEntries {
     protected EntrySupplier entrySupplier;
     protected String sourcename;
 
+    private boolean isStreaming;
+
     public OrderedEntries() {
         clear();
     }
@@ -39,6 +41,7 @@ public class OrderedEntries {
 
         enableTabsInKey(false);
         enableDotsInKey(false);
+        isStreaming = false;
     }
 
     public synchronized void load(String string) throws IOException {
@@ -276,6 +279,11 @@ public class OrderedEntries {
         return entry;
     }
 
+
+    public void setPartitionPredicate(Predicate<EntrySupplier> partitionPredicate) {
+        entrySupplier.setPartitionPredicate(partitionPredicate);
+    }
+
     /**
      * Locates parent with a specfific file name
      *
@@ -314,8 +322,10 @@ public class OrderedEntries {
 
 
     protected synchronized void addProperty(Map.Entry<Object, Object> entry, Integer lineNumber) {
-        this.linenumbers.add(lineNumber);
-        this.entries.add(entry);
+        if (!isStreaming) {
+            this.linenumbers.add(lineNumber);
+            this.entries.add(entry);
+        }
         entryConsumer.accept(entry, lineNumber);
         entryLookaheadConsumer.accept(entry, entrySupplier.getNextEntry());
     }
@@ -337,29 +347,22 @@ public class OrderedEntries {
         return new File(filename).getAbsolutePath();
     }
 
-    public void setPartitionPredicate(Predicate<EntrySupplier> partitionPredicate) {
-        entrySupplier.setPartitionPredicate(partitionPredicate);
-    }
-
 
     Stream<Map.Entry<Object, Object>> newStream(Runnable onClose) {
+        isStreaming = true;
         return new EntrySpliterator(this, 1, 2).createStream(onClose);
     }
 
     Stream<Stream<Map.Entry<Object, Object>>> newStreams(Runnable onClose) {
+        isStreaming = true;
         return new StreamSpliterator(this, 1, 2).createStreams(onClose);
     }
 
-    Map.Entry<Object, Object> getNextEntry() {
-        return entrySupplier.getNextEntry();
-
-    }
-
-    public boolean isLastEntry() {
+    boolean isLastEntry() {
         return entrySupplier.isLastEntry();
     }
 
-    public boolean isLastEntryInPartition() {
+    boolean isLastEntryInPartition() {
         return entrySupplier.isLastEntryInPartition();
     }
 }
