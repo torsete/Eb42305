@@ -355,6 +355,30 @@ public class OrderedEntriesTest {
     }
 
     @Test
+    public void testIncludeSelfReferencingFiles() throws IOException {
+        testUtil.writeFile("test",
+                "include=test1",
+                "include=test2",
+                "key=value",
+                "");
+        testUtil.writeFile("test1",
+                "key1=value1",
+                "");
+        testUtil.writeFile("test2",
+                "key2=value2",
+                "include=test",
+                "");
+
+        try {
+            orderedEntries.load(testUtil.getFile("test"));
+            fail("Expects an IllegalArgumentException");
+        } catch (IllegalArgumentException e) {
+        }
+
+
+    }
+
+    @Test
     public void testIncludeFiles2() throws IOException {
         testUtil.writeFile("test",
                 "include=test2",
@@ -426,43 +450,25 @@ public class OrderedEntriesTest {
         };
 
         testUtil.writeFile("test",
-                "=0",
+                "x=0",
                 "\t=1",
                 "\ta\t=2",
                 "");
 
-        orderedEntries.load(testUtil.getFile("test"));
-        assertEquals("2", orderedEntries.readFirst("a"));
-        assertEquals("0", orderedEntries.readFirst(""));
-
-        assertEquals(3, orderedEntries.getEntries().size());
-        verifyEntry("", "0", orderedEntries.getEntries().get(0));
-        verifyEntry("", "1", orderedEntries.getEntries().get(1));
-        verifyEntry("a", "2", orderedEntries.getEntries().get(2));
-
-
-        orderedEntries.clear();
         orderedEntries.enableDotsInKey(true);
         orderedEntries.enableTabsInKey(true);
         orderedEntries.load(testUtil.getFile("test"));
-        assertEquals(3, orderedEntries.size());
-        assertEquals("0", orderedEntries.readFirst(""));
-        assertEquals("1", orderedEntries.readFirst("."));
-        assertEquals("2", orderedEntries.readFirst(".a"));
+        assertEquals("2", orderedEntries.readFirst("x.a"));
+        assertEquals("0", orderedEntries.readFirst("x"));
 
         assertEquals(3, orderedEntries.getEntries().size());
-        verifyEntry("", "0", orderedEntries.getEntries().get(0));
-        verifyEntry(".", "1", orderedEntries.getEntries().get(1));
-        verifyEntry(".a", "2", orderedEntries.getEntries().get(2));
+        verifyEntry("x", "0", orderedEntries.getEntries().get(0));
+        verifyEntry("x.", "1", orderedEntries.getEntries().get(1));
+        verifyEntry("x.a", "2", orderedEntries.getEntries().get(2));
 
-        assertEquals("=0\n" +
-                        "\t=1\n" +
-                        "\ta=2\n",
-                orderedEntries.getOrderedAsString());
-        orderedEntries.enableTabsInKey(false);
-        assertEquals("=0\n" +
-                        ".=1\n" +
-                        ".a=2\n",
+        assertEquals("x=0\n" +
+                        "x.=1\n" +
+                        "x.a=2\n",
                 orderedEntries.getOrderedAsString());
     }
 
