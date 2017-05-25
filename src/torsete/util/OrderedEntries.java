@@ -7,6 +7,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.function.BiConsumer;
+import java.util.function.BiFunction;
 import java.util.function.Predicate;
 import java.util.stream.Stream;
 
@@ -16,45 +17,57 @@ public class OrderedEntries {
     protected List<String> sourcenameStack;
 
     protected Predicate<Map.Entry<Object, Object>> includePredicate;
-    protected BiConsumer<Map.Entry<Object, Object>, Integer> entryConsumer;
-    protected BiConsumer<Map.Entry<Object, Object>, Map.Entry<Object, Object>> entryLookaheadConsumer;
+    protected BiConsumer<Map.Entry<Object, Object>, Map.Entry<Object, Object>> entryConsumer;
+    protected BiFunction<Map.Entry<Object, Object>, Map.Entry<Object, Object>, Boolean> endOfStreamFunction;
     protected EntrySupplier entrySupplier;
     protected String sourcename;
-
     private boolean keepEntries;
+    private int nextEntryIndex;
+
 
     public OrderedEntries() {
         clear();
     }
 
-    public synchronized void clear() {
+    public synchronized OrderedEntries clear() {
         entries = new ArrayList<>();
         linenumbers = new ArrayList<>();
         sourcenameStack = new ArrayList<>();
-
         includePredicate = entry -> entry.getKey().toString().toLowerCase().equals("include");
-        entryConsumer = (e, l) -> {
+        entryConsumer = (e1, e2) -> {
         };
-        entryLookaheadConsumer = (e1, e2) -> {
-        };
+        endOfStreamFunction = (e1, e2) -> e2 == null;
         entrySupplier = new EntrySupplier();
-
         enableTabsInKey(false);
         enableDotsInKey(false);
         keepEntries = true;
+        nextEntryIndex = 0;
+
+
+        setEntryConsumer((e1, e2) -> {
+            es = new ArrayList<>();
+            es.add(e1);
+            es.add(e2);
+        });
+        return this;
     }
 
-    public synchronized void load(String string) throws IOException {
+
+    List<Map.Entry<Object, Object>> es = new ArrayList<>();
+
+    public synchronized OrderedEntries load(String string) throws IOException {
         StringReader stringReader = new StringReader(string);
         load(stringReader);
         stringReader.close();
-        System.out.println("load() StringReader closed");
+//        System.out.println("load() StringReader closed");
+        return this;
     }
 
-    public synchronized void load(InputStream inputStream) throws IOException {
+    public synchronized OrderedEntries load(InputStream inputStream) throws IOException {
         load(new InputStreamReader(inputStream));
         inputStream.close();
-        System.out.println("load() InputStream closed");
+//        System.out.println("load() InputStream closed");
+        return this;
     }
 
     /**
@@ -65,23 +78,52 @@ public class OrderedEntries {
      */
     public OrderedEntries load(File file) throws IOException {
         sourcename = file.getAbsolutePath();
+        sourcenameStack.add(sourcename); // Push
         FileInputStream fileInputStream = new FileInputStream(file);
         try {
             load(fileInputStream);
         } finally {
             fileInputStream.close();
-            System.out.println("streams() FileInputStream closed");
+//            System.out.println("load() FileInputStream closed");
         }
+        sourcenameStack.remove(sourcename); //Pop
         return this;
     }
 
 
-    public synchronized void load(Reader reader) throws IOException {
+    public synchronized OrderedEntries load(Reader reader) throws IOException {
         entrySupplier.setReader(reader);
         Map.Entry<Object, Object> entry;
         do {
-            entry = processEntry();
+            entry = readNextEntry();
         } while (entry != null);
+        return this;
+    }
+
+    public synchronized Stream<Map.Entry<Object, Object>> stream(String string) throws IOException {
+        StringReader stringReader = new StringReader(string);
+        return stream(stringReader);
+    }
+
+    public synchronized Stream<Stream<Map.Entry<Object, Object>>> streams(String string) throws IOException {
+        StringReader reader = new StringReader(string);
+        getEntrySupplier().setReader(reader);
+        return readingStreams(() -> {
+            reader.close();
+//            System.out.println("streams() Reader closed");
+        });
+    }
+
+    public synchronized Stream<Stream<Map.Entry<Object, Object>>> streams(Reader reader) throws IOException {
+        getEntrySupplier().setReader(reader);
+        return readingStreams(() -> {
+            try {
+                reader.close();
+//                System.out.println("streams() Reader closed");
+            } catch (IOException e) {
+                throw new RuntimeException(e);
+            }
+        });
     }
 
     public synchronized Stream<Map.Entry<Object, Object>> stream(File file) throws IOException {
@@ -100,10 +142,10 @@ public class OrderedEntries {
     public synchronized Stream<Map.Entry<Object, Object>> stream(InputStream inputStream) throws IOException {
         InputStreamReader reader = new InputStreamReader(inputStream);
         getEntrySupplier().setReader(reader);
-        return stream(() -> {
+        return readingStream(() -> {
             try {
                 inputStream.close();
-                System.out.println("stream() InputStream closed");
+//                System.out.println("stream() InputStream closed");
             } catch (IOException e) {
                 throw new RuntimeException(e);
             }
@@ -113,10 +155,10 @@ public class OrderedEntries {
     public synchronized Stream<Stream<Map.Entry<Object, Object>>> streams(InputStream inputStream) throws IOException {
         InputStreamReader reader = new InputStreamReader(inputStream);
         getEntrySupplier().setReader(reader);
-        return streams(() -> {
+        return readingStreams(() -> {
             try {
                 inputStream.close();
-                System.out.println("streams() InputStream closed");
+//                System.out.println("streams() InputStream closed");
             } catch (IOException e) {
                 throw new RuntimeException(e);
             }
@@ -125,19 +167,16 @@ public class OrderedEntries {
 
     public Stream<Map.Entry<Object, Object>> stream(Reader reader) throws IOException {
         getEntrySupplier().setReader(reader);
-        return stream(() -> {
+        return readingStream(() -> {
             try {
                 reader.close();
-                System.out.println("stream() Reader closed");
+//                System.out.println("stream() Reader closed");
             } catch (IOException e) {
                 throw new RuntimeException(e);
             }
         });
     }
 
-    public synchronized Stream<Stream<Map.Entry<Object, Object>>> streams() {
-        return null;
-    }
 
     /**
      * Predicate for keys identifying another property file to be included
@@ -149,13 +188,9 @@ public class OrderedEntries {
         return this;
     }
 
-    public OrderedEntries setEntryConsumer(BiConsumer<Map.Entry<Object, Object>, Integer> entryConsumer) {
-        this.entryConsumer = entryConsumer;
-        return this;
-    }
 
-    public OrderedEntries setEntryLookaheadConsumer(BiConsumer<Map.Entry<Object, Object>, Map.Entry<Object, Object>> entryLookaheadConsumer) {
-        this.entryLookaheadConsumer = entryLookaheadConsumer;
+    public OrderedEntries setEntryConsumer(BiConsumer<Map.Entry<Object, Object>, Map.Entry<Object, Object>> entryConsumer) {
+        this.entryConsumer = entryConsumer;
         return this;
     }
 
@@ -182,13 +217,13 @@ public class OrderedEntries {
         return entrySupplier.isDotsInKeyEnabled();
     }
 
-
     public void setSourcename(String sourcename) {
         this.sourcename = sourcename;
     }
 
-    public void enableKeepEntries(boolean enabled) {
+    public OrderedEntries enableKeepEntries(boolean enabled) {
         keepEntries = enabled;
+        return this;
     }
 
     /**
@@ -227,7 +262,7 @@ public class OrderedEntries {
         List<Map.Entry<Object, Object>> ops = entries;
         Optional<Map.Entry<Object, Object>> entryOptional = ops.stream()
                 .filter(e -> e.getKey().equals(key)).findFirst();
-        return entryOptional.isPresent() ? entryOptional.get().getValue() : null;
+        return entryOptional.get().getValue();
     }
 
     public List<Map.Entry<Object, Object>> getEntries() {
@@ -259,14 +294,11 @@ public class OrderedEntries {
         return sourcename;
     }
 
-    protected Map.Entry<Object, Object> processEntry() {
+    protected Map.Entry<Object, Object> readNextEntry() {
         Map.Entry<Object, Object> entry = entrySupplier.get();
         if (entry != null) {
             boolean isInclude = includePredicate.test(entry);
             if (isInclude) {
-                if (sourcename == null) {
-                    throw new IllegalArgumentException("Source is missing");
-                }
                 includeProperties(entry);
             } else {
                 addProperty(entry, entrySupplier.getCurrentLineNumber());
@@ -275,16 +307,12 @@ public class OrderedEntries {
         return entry;
     }
 
-
-    public void setPartitionPredicate(Predicate<EntrySupplier> partitionPredicate) {
-        entrySupplier.setPartitionPredicate(partitionPredicate);
-    }
-
     private void includeProperties(Map.Entry<Object, Object> entry) {
         OrderedEntries includedOrderedEntries = new OrderedEntries()
                 .setEntryConsumer(entryConsumer)
-                .setEntryLookaheadConsumer(entryLookaheadConsumer)
                 .setIncludePredicate(includePredicate)
+                .setEndOfStreamFunction(endOfStreamFunction)
+                .enableKeepEntries(keepEntries)
                 .enableDotsInKey(isDotsInKeyEnabled())
                 .enableTabsInKey(isTabsInKeyEnabled())
                 .setSourcenameStack(sourcenameStack);
@@ -293,7 +321,6 @@ public class OrderedEntries {
         if (sourcenameStack.contains(includeSourcename)) {
             throw new IllegalArgumentException("Circular reference from " + sourcename + " to " + includeSourcename);
         }
-        sourcenameStack.add(includeSourcename);
         try {
             includedOrderedEntries.load(new File(includeSourcename));
         } catch (IOException e) {
@@ -301,11 +328,10 @@ public class OrderedEntries {
         }
         entries.addAll(includedOrderedEntries.entries);
         linenumbers.addAll(includedOrderedEntries.linenumbers);
-        sourcenameStack.remove(includeSourcename);
     }
 
 
-    private OrderedEntries setSourcenameStack(List<String> sourcenameStack) {
+    protected OrderedEntries setSourcenameStack(List<String> sourcenameStack) {
         this.sourcenameStack = sourcenameStack;
         return this;
     }
@@ -315,57 +341,77 @@ public class OrderedEntries {
             this.linenumbers.add(lineNumber);
             this.entries.add(entry);
         }
-        entryConsumer.accept(entry, lineNumber);
-        entryLookaheadConsumer.accept(entry, entrySupplier.getNextEntry());
+        entryConsumer.accept(entry, entrySupplier.getNextEntry());
     }
 
 
     private String getAbsolutePath(String filename) {
-        boolean useRelativeFilename = true;
-        if (filename != null && filename.length() > 1) {
-            if (filename.charAt(1) == ':') {
-                useRelativeFilename = false;
-            }
-            if (filename.substring(0, 2).equals("\\\\")) {
-                useRelativeFilename = false;
-            }
-        }
-        if (useRelativeFilename) {
-            filename = new File(this.sourcename).getParent() + File.separator + filename;
-        }
+        filename = new File(this.sourcename).getParent() + File.separator + filename;
         return new File(filename).getAbsolutePath();
     }
 
 
+    public OrderedEntries setEndOfStreamFunction(BiFunction<Map.Entry<Object, Object>, Map.Entry<Object, Object>, Boolean> endOfStreamFunction) {
+        this.endOfStreamFunction = endOfStreamFunction;
+        return this;
+    }
+
+
+    Stream<Map.Entry<Object, Object>> readingStream() {
+        return readingStream(() -> {
+        });
+    }
+
+    Stream<Map.Entry<Object, Object>> readingStream(Runnable onClose) {
+//        return new BaseSpliterator<Map.Entry<Object, Object>>()
+//                .setNextSupplier(() -> {
+//                    readNextEntry();
+//                    return es.get(0);
+//                })
+//                .setIsLastSupplier(() ->
+//                        (es.get(0) == null || endOfStreamFunction.apply(es.get(0), es.get(1))))
+//                .setOnClose(onClose)
+//                .stream();
+//    }
+//
+//    Stream<Stream<Map.Entry<Object, Object>>> readingStreams(Runnable onClose) {
+//        return new BaseSpliterator<Stream<Map.Entry<Object, Object>>>()
+//                .setNextSupplier(() -> readingStream())
+//                .setIsLastSupplier(() -> es.get(0) == null)
+//                .setOnClose(onClose)
+//                .stream();
+//    }
+        return new BaseSpliterator<Map.Entry<Object, Object>>()
+                .setNextSupplier(() -> readNextEntry())
+                .setIsLastSupplier(() ->
+                        (entrySupplier.getNextEntry() == null || endOfStreamFunction.apply(entrySupplier.getCurrentEntry(), entrySupplier.getNextEntry())))
+                .setOnClose(onClose)
+                .stream();
+    }
+
+    Stream<Stream<Map.Entry<Object, Object>>> readingStreams(Runnable onClose) {
+        return new BaseSpliterator<Stream<Map.Entry<Object, Object>>>()
+                .setNextSupplier(() -> readingStream())
+                .setIsLastSupplier(() -> entrySupplier.getNextEntry() == null)
+                .setOnClose(onClose)
+                .stream();
+    }
+
     Stream<Map.Entry<Object, Object>> stream() {
         return new BaseSpliterator<Map.Entry<Object, Object>>()
-                .setNextSupplier(() -> processEntry())
-                .setIsLastSupplier(() -> isLastEntryInPartition())
+                .setNextSupplier(() -> entries.get(nextEntryIndex++))
+                .setIsLastSupplier(() -> nextEntryIndex >= entries.size() || endOfStreamFunction.apply(entries.get(nextEntryIndex - 1), entries.get(nextEntryIndex)))
                 .stream();
     }
 
-    Stream<Map.Entry<Object, Object>> stream(Runnable onClose) {
-        return new BaseSpliterator<Map.Entry<Object, Object>>()
-                .setNextSupplier(() -> processEntry())
-                .setIsLastSupplier(() -> isLastEntryInPartition())
-                .setOnClose(onClose)
-                .stream();
-    }
 
-    Stream<Stream<Map.Entry<Object, Object>>> streams(Runnable onClose) {
+    public synchronized Stream<Stream<Map.Entry<Object, Object>>> streams() {
         return new BaseSpliterator<Stream<Map.Entry<Object, Object>>>()
                 .setNextSupplier(() -> stream())
-                .setIsLastSupplier(() -> isLastEntry())
-                .setOnClose(onClose)
+                .setIsLastSupplier(() -> nextEntryIndex >= entries.size())
                 .stream();
     }
 
-    boolean isLastEntry() {
-        return entrySupplier.isLastEntry();
-    }
 
-    boolean isLastEntryInPartition() {
-        return entrySupplier.isLastEntryInPartition();
-    }
 }
 

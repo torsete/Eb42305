@@ -56,6 +56,10 @@ public class BaseSpliterator<T> extends Spliterators.AbstractSpliterator<T> {
         return stream = StreamSupport.stream(this, false).onClose(onClose);
     }
 
+    /**
+     * @param onClose Takes precedence over possible use {@link #onClose}
+     * @return
+     */
     Stream<T> stream(Runnable onClose) {
         return stream = StreamSupport.stream(this, false).onClose(onClose);
     }

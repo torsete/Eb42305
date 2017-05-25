@@ -39,6 +39,11 @@ public class OrderedEntriesTest {
 
 
     @Test
+    public void testEmpty() throws IOException {
+        testUtil.writeFile("test", "");
+    }
+
+    @Test
     public void testInitial() throws IOException {
         testUtil.writeFile("test", "");
 
@@ -327,7 +332,6 @@ public class OrderedEntriesTest {
 
 
         orderedEntries.load(testUtil.getFile("test"));
-//        assertEquals(1, orderedEntries.size(false));
         assertEquals(3, orderedEntries.size());
         assertEquals(3, orderedEntries.getEntries().size());
 
@@ -350,8 +354,6 @@ public class OrderedEntriesTest {
 
 
         assertEquals(testUtil.getFoldername("test"), orderedEntries.getSourcename());
-
-
     }
 
     @Test
@@ -368,6 +370,19 @@ public class OrderedEntriesTest {
                 "key2=value2",
                 "include=test",
                 "");
+
+        try {
+            orderedEntries.load(testUtil.getFile("test"));
+            fail("Expects an IllegalArgumentException");
+        } catch (IllegalArgumentException e) {
+        }
+
+
+    }
+
+    @Test
+    public void testIncludeMissingFile() throws IOException {
+        testUtil.writeFile("test", "include=");
 
         try {
             orderedEntries.load(testUtil.getFile("test"));
@@ -519,6 +534,22 @@ public class OrderedEntriesTest {
     }
 
     @Test
+    public void testKeepEntries() throws IOException {
+        testUtil.writeFile("test",
+                "k=v");
+        OrderedEntries orderedEntries;
+
+        orderedEntries = new OrderedEntries().load(testUtil.getInputStream("test"));
+        assertEquals(1, orderedEntries.getEntries().size());
+
+        orderedEntries = new OrderedEntries().enableKeepEntries(true).load(testUtil.getInputStream("test"));
+        assertEquals(1, orderedEntries.getEntries().size());
+
+        orderedEntries = new OrderedEntries().enableKeepEntries(false).load(testUtil.getInputStream("test"));
+        assertEquals(0, orderedEntries.getEntries().size());
+    }
+
+    @Test
     public void testManyDotsKeys() throws IOException {
         testUtil.writeFile("test",
                 "root=0",
@@ -557,6 +588,29 @@ public class OrderedEntriesTest {
 
         String s = orderedEntries.toString().replace(',', '\n');
         System.out.println(s);
+    }
+
+    @Test
+    public void testEntryConsumer() throws IOException {
+        testUtil.writeFile("test",
+                "",
+                "key00=a",
+                ".include=test1",
+                ".include=test2",
+                ".include=test2",
+                "key01=d"
+        );
+        testUtil.writeFile("test1", "key1=b");
+        testUtil.writeFile("test2", "key2=c");
+
+
+        orderedEntries.setEntryConsumer((e1, e2) -> {
+            System.out.println(e1 + " " + e2);
+        });
+
+        orderedEntries.load(testUtil.getFile("test"));
+
+
     }
 
     @Test
@@ -600,52 +654,16 @@ public class OrderedEntriesTest {
 
     }
 
-    @Test
-    public void testStreamSeparation() throws IOException {
-        testUtil.writeFile("test",
-                "",
-                "key1=a",
-                ".key11=b",
-                ".key12=c",
-                "key2=d",
-                "");
-
-
-        int[] i = new int[1];
-        orderedEntries.enableDotsInKey(true);
-        orderedEntries.setPartitionPredicate(entrySupplier -> {
-            boolean endOfStream = entrySupplier.getCurrentEntry() != null && entrySupplier.getNextEntry() != null &&
-                    !entrySupplier.getCurrentKeyParts().get(0).equals(entrySupplier.getNextKeyParts().get(0));
-            switch (i[0]++) {
-                case 0:
-                    assertFalse(endOfStream);
-                    break;
-                case 1:
-                    assertFalse(endOfStream);
-                    break;
-                case 2:
-                    assertTrue(endOfStream);
-                    break;
-                case 3:
-                    assertTrue(endOfStream);
-                    break;
-                default:
-                    break;
-            }
-
-            return endOfStream;
-        });
-
-        orderedEntries.stream(testUtil.getFile("test"))
-                .forEach(e -> {
-
-                });
-    }
-
+    /**
+     * Test input type x One Stream/Stream of one Stream/Stream of Streams
+     * <p>
+     * Input type is File, Reader, InputStream or String
+     *
+     * @throws IOException
+     */
     @Test
     public void testStreamOfStream() throws IOException {
         testUtil.writeFile("test",
-                "",
                 "key1=a",
                 ".key11=b",
                 ".key12=c",
@@ -655,39 +673,255 @@ public class OrderedEntriesTest {
                 ".key23=e",
                 ".key24=e",
                 ".key25=e",
-                ".key26=e",
-                "");
+                ".key26=e");
 
+        BiFunction<Map.Entry<Object, Object>, Map.Entry<Object, Object>, Boolean> endOfStreamFunction = (e1, e2) -> e2.getKey().toString().indexOf('.') < 0;
 
-        int[] i = new int[1];
-        orderedEntries.enableDotsInKey(true);
-        orderedEntries.setPartitionPredicate(entrySupplier -> entrySupplier.getNextKeyParts().size() == 1);
+        List<Stream<Stream<Map.Entry<Object, Object>>>> streamss = new ArrayList<>(); // Stream of Stream
+        List<Stream<Stream<Map.Entry<Object, Object>>>> streamss0 = new ArrayList<>(); // Stream of one Stream
+        List<Stream<Map.Entry<Object, Object>>> streams = new ArrayList<>(); // One Stream
 
-        int[] streamIndex = new int[1];
-        int[] subStreamIndex = new int[1000];
-        Stream<Stream<Map.Entry<Object, Object>>> streams = orderedEntries.streams(testUtil.getFile("test"));
-        streams.forEach(s -> {
-            s.forEach(e -> {
-                System.out.println(streamIndex[0] + ":" + subStreamIndex[streamIndex[0]] + " " + e);
-                subStreamIndex[streamIndex[0]]++;
+        streamss.add(new OrderedEntries()
+                .enableDotsInKey(true)
+                .setEndOfStreamFunction(endOfStreamFunction)
+                .streams(testUtil.getFile("test")));
+        streamss.add(new OrderedEntries()
+                .enableDotsInKey(true)
+                .load(testUtil.getFile("test"))
+                .setEndOfStreamFunction(endOfStreamFunction)
+                .streams());
+        streamss0.add(new OrderedEntries()
+                .enableDotsInKey(true)
+                .streams(testUtil.getFile("test")));
+        streamss0.add(new OrderedEntries()
+                .enableDotsInKey(true)
+                .load(testUtil.getFile("test"))
+                .streams());
+        streams.add(new OrderedEntries()
+                .enableDotsInKey(true)
+                .stream(testUtil.getFile("test")));
+        streams.add(new OrderedEntries()
+                .enableDotsInKey(true)
+                .load(testUtil.getFile("test"))
+                .stream());
+
+        streamss.add(new OrderedEntries()
+                .enableDotsInKey(true)
+                .setEndOfStreamFunction(endOfStreamFunction)
+                .streams(testUtil.getContent("test")));
+        streamss.add(new OrderedEntries()
+                .enableDotsInKey(true)
+                .load(testUtil.getContent("test"))
+                .setEndOfStreamFunction(endOfStreamFunction)
+                .streams());
+        streamss0.add(new OrderedEntries()
+                .enableDotsInKey(true)
+                .streams(testUtil.getContent("test")));
+        streamss0.add(new OrderedEntries()
+                .enableDotsInKey(true)
+                .load(testUtil.getContent("test"))
+                .streams());
+        streams.add(new OrderedEntries()
+                .enableDotsInKey(true)
+                .stream(testUtil.getContent("test")));
+        streams.add(new OrderedEntries()
+                .enableDotsInKey(true)
+                .load(testUtil.getContent("test"))
+                .stream());
+
+        streamss.add(new OrderedEntries()
+                .enableDotsInKey(true)
+                .setEndOfStreamFunction(endOfStreamFunction)
+                .streams(testUtil.getInputStream("test")));
+        streamss.add(new OrderedEntries()
+                .enableDotsInKey(true)
+                .load(testUtil.getInputStream("test"))
+                .setEndOfStreamFunction(endOfStreamFunction)
+                .streams());
+        streamss0.add(new OrderedEntries()
+                .enableDotsInKey(true)
+                .streams(testUtil.getInputStream("test")));
+        streamss0.add(new OrderedEntries()
+                .enableDotsInKey(true)
+                .load(testUtil.getInputStream("test"))
+                .streams());
+        streams.add(new OrderedEntries()
+                .enableDotsInKey(true)
+                .stream(testUtil.getInputStream("test")));
+        streams.add(new OrderedEntries()
+                .enableDotsInKey(true)
+                .load(testUtil.getInputStream("test"))
+                .stream());
+
+        streamss.add(new OrderedEntries()
+                .enableDotsInKey(true)
+                .setEndOfStreamFunction(endOfStreamFunction)
+                .streams(testUtil.getBufferedReader("test")));
+        streamss.add(new OrderedEntries()
+                .enableDotsInKey(true)
+                .load(testUtil.getBufferedReader("test"))
+                .setEndOfStreamFunction(endOfStreamFunction)
+                .streams());
+        streamss0.add(new OrderedEntries()
+                .enableDotsInKey(true)
+                .streams(testUtil.getBufferedReader("test")));
+        streamss0.add(new OrderedEntries()
+                .enableDotsInKey(true)
+                .load(testUtil.getBufferedReader("test"))
+                .streams());
+        streams.add(new OrderedEntries()
+                .enableDotsInKey(true)
+                .stream(testUtil.getBufferedReader("test")));
+        streams.add(new OrderedEntries()
+                .enableDotsInKey(true)
+                .load(testUtil.getBufferedReader("test"))
+                .stream());
+
+        for (Stream<Map.Entry<Object, Object>> s : streams) {
+            assertEquals(10, s.count());
+        }
+
+        for (Stream<Stream<Map.Entry<Object, Object>>> ss : streamss0) {
+            int[] streamIndex = new int[1];
+            int[] subStreamIndex = new int[100];
+            ss.forEach(s -> {
+                s.forEach(e -> {
+                    System.out.println(streamIndex[0] + ":" + subStreamIndex[streamIndex[0]] + " " + e);
+                    subStreamIndex[streamIndex[0]]++;
+                });
+                streamIndex[0]++;
             });
-            streamIndex[0]++;
-        });
 
-        assertEquals(2, streamIndex[0]);
-        assertEquals(3, subStreamIndex[0]);
-        assertEquals(7, subStreamIndex[1]);
+            assertEquals(1, streamIndex[0]);
+            assertEquals(10, subStreamIndex[0]);
+        }
+
+        for (Stream<Stream<Map.Entry<Object, Object>>> ss : streamss) {
+            int[] streamIndex = new int[1];
+            int[] subStreamIndex = new int[100];
+            ss.forEach(s -> {
+                s.forEach(e -> {
+                    System.out.println(streamIndex[0] + ":" + subStreamIndex[streamIndex[0]] + " " + e);
+                    subStreamIndex[streamIndex[0]]++;
+                });
+                streamIndex[0]++;
+            });
+
+            assertEquals(2, streamIndex[0]);
+            assertEquals(3, subStreamIndex[0]);
+            assertEquals(7, subStreamIndex[1]);
+        }
+
+
+    }
+
+    @Test
+    public void testStreamOfStreamWithIncludeFiles() throws IOException {
+        testUtil.writeFile("test",
+                "key1=a",
+                ".key11=b",
+                ".key12=c",
+                "include=test1",
+                "key2=d",
+                ".key21=e",
+                ".key22=e",
+                ".key23=e",
+                ".key24=e",
+                ".key25=e",
+                ".key26=e");
+        testUtil.writeFile("test1",
+                "key3=a",
+                ".key31=b",
+                ".key32=c",
+                "key4=x",
+                ".key41=e"
+        );
+//        System.out.println(new OrderedEntries().load(testUtil.getFile("test")).getOrderedAsString());
+
+        BiFunction<Map.Entry<Object, Object>, Map.Entry<Object, Object>, Boolean> endOfStreamFunction = (e1, e2) -> e2.getKey().toString().indexOf('.') < 0;
+
+        List<Stream<Stream<Map.Entry<Object, Object>>>> streamss = new ArrayList<>(); // Stream of Stream
+        List<Stream<Stream<Map.Entry<Object, Object>>>> streamss0 = new ArrayList<>(); // Stream of one Stream
+        List<Stream<Map.Entry<Object, Object>>> streams = new ArrayList<>(); // One Stream
+
+//        streamss.add(new OrderedEntries()
+//                .enableDotsInKey(true)
+//                .setEndOfStreamFunction(endOfStreamFunction)
+//                .streams(testUtil.getFile("test")));
+        //        streamss0.add(new OrderedEntries()
+//                .enableDotsInKey(true)
+//                .streams(testUtil.getFile("test")));
+        streams.add(new OrderedEntries()
+                .enableDotsInKey(true)
+                .stream(testUtil.getFile("test")));
+
+
+//        streamss.add(new OrderedEntries()
+//                .enableDotsInKey(true)
+//                .load(testUtil.getFile("test"))
+//                .setEndOfStreamFunction(endOfStreamFunction)
+//                .streams());
+//        streamss0.add(new OrderedEntries()
+//                .enableDotsInKey(true)
+//                .load(testUtil.getFile("test"))
+//                .streams());
+//        streams.add(new OrderedEntries()
+//                .enableDotsInKey(true)
+//                .load(testUtil.getFile("test"))
+//                .stream());
+
+
+        for (Stream<Map.Entry<Object, Object>> s : streams) {
+            assertEquals(15, s.count());
+        }
+
+        for (Stream<Stream<Map.Entry<Object, Object>>> ss : streamss0) {
+            int[] streamIndex = new int[1];
+            int[] subStreamIndex = new int[100];
+            ss.forEach(s -> {
+                s.forEach(e -> {
+                    System.out.println(streamIndex[0] + ":" + subStreamIndex[streamIndex[0]] + " " + e);
+                    subStreamIndex[streamIndex[0]]++;
+                });
+                streamIndex[0]++;
+            });
+
+            assertEquals(1, streamIndex[0]);
+            assertEquals(15, subStreamIndex[0]);
+        }
+
+        for (Stream<Stream<Map.Entry<Object, Object>>> ss : streamss) {
+            int[] streamIndex = new int[1];
+            int[] subStreamIndex = new int[100];
+            ss.forEach(s -> {
+                s.forEach(e -> {
+                    System.out.println(streamIndex[0] + ":" + subStreamIndex[streamIndex[0]] + " " + e);
+                    subStreamIndex[streamIndex[0]]++;
+                });
+                streamIndex[0]++;
+            });
+
+            assertEquals(4, streamIndex[0]);
+            assertEquals(3, subStreamIndex[0]);
+            assertEquals(3, subStreamIndex[1]);
+            assertEquals(2, subStreamIndex[2]);
+            assertEquals(7, subStreamIndex[3]);
+        }
+
+
     }
 
     @Test
     public void showStreamCase() throws IOException {
         testUtil.writeFile("test",
+                // This is stream 1:
                 "form      Name of form 1",
                 ".id       formId1",
                 ".h        Header 1",
                 ".input    Enter text",
                 "..id      inputId",
                 "..validation code1",
+                // This is stream2 :
                 "form      Name of form 2",
                 ".id       formId1",
                 ".h        Header 1",
@@ -713,12 +947,24 @@ public class OrderedEntriesTest {
 
         orderedEntries.enableDotsInKey(true);
         orderedEntries.enableTabsInKey(true);
-        orderedEntries.setPartitionPredicate(entrySupplier -> entrySupplier.getNextEntry() != null && entrySupplier.getNextEntry().getKey().equals("form"));
+        orderedEntries.setEndOfStreamFunction((e1, e2) -> e2.getKey().toString().indexOf('.') < 0);
 
         Stream<Stream<Map.Entry<Object, Object>>> streams = orderedEntries.streams(testUtil.getFile("test"));
         streams.forEach(s -> {
             formEntriesConsumer.accept(s);
         });
+
+
+        orderedEntries.clear();
+        orderedEntries.enableDotsInKey(true);
+        orderedEntries.setEndOfStreamFunction((e1, e2) -> e2.getKey().toString().indexOf('.') < 0);
+        orderedEntries.load(testUtil.getFile("test"));
+        streams = orderedEntries.streams();
+        streams.forEach(s -> {
+            formEntriesConsumer.accept(s);
+        });
+
+
     }
 
 

@@ -12,9 +12,9 @@ public class OrderedProperties extends OrderedEntries {
     public OrderedProperties() {
         super();
         properties = new Properties();
-        setEntryConsumer((e, l) -> {
-            Object key = e.getKey();
-            Object value = e.getValue();
+        setEntryConsumer((e1, e2) -> {
+            Object key = e1.getKey();
+            Object value = e1.getValue();
             if (properties.get(key) == null) {
                 put(key, new ArrayList<>());
             }
