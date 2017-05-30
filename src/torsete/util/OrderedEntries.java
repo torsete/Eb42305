@@ -50,7 +50,7 @@ public class OrderedEntries<K, V> {
         StringBuilder sb = new StringBuilder();
         OrderedEntry<K, V> orderedEntry = entryInput.getFirstOrderedEntry();
         while (orderedEntry != null) {
-            sb.append(orderedEntry.getLineNumber() + ": " + orderedEntry.getEntry() + "\n");
+            sb.append(orderedEntry.toString() + "\n");
             orderedEntry = orderedEntry.getSuccessor();
         }
 
@@ -246,7 +246,7 @@ public class OrderedEntries<K, V> {
     }
 
     private EntryReader newEntryReader(Reader reader) {
-        EntryReader entryReader = new EntryReader(reader, null).enableTabsInKey(isTabsInKeyEnabled);
+        EntryReader entryReader = new EntryReader(reader).enableTabsInKey(isTabsInKeyEnabled);
         return entryReader;
     }
 

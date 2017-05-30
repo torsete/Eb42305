@@ -8,16 +8,30 @@ import java.util.Properties;
  */
 public class OrderedEntry<K, V> {
     private Map.Entry<K, V> entry;
-    private int lineNumber;
+    private Integer lineNumber;
     private OrderedEntry successor;
+    private V source;
 
-    public OrderedEntry(Map.Entry<K, V> entry, int lineNumber) {
+    public OrderedEntry(Map.Entry<K, V> entry) {
         this.entry = entry;
-        this.lineNumber = lineNumber;
     }
 
-    public int getLineNumber() {
+    public Integer getLineNumber() {
         return lineNumber;
+    }
+
+    public OrderedEntry<K, V> setLineNumber(Integer lineNumber) {
+        this.lineNumber = lineNumber;
+        return this;
+    }
+
+    public V getSource() {
+        return source;
+    }
+
+    public OrderedEntry<K, V> setSource(V source) {
+        this.source = source;
+        return this;
     }
 
     public K getKey() {
@@ -47,7 +61,6 @@ public class OrderedEntry<K, V> {
     }
 
     public void setSuccessor(OrderedEntry<K, V> successor) {
-
         this.successor = successor;
     }
 
@@ -55,8 +68,10 @@ public class OrderedEntry<K, V> {
     @Override
     public String toString() {
         StringBuilder sb = new StringBuilder();
-        sb.append(lineNumber + ": " + entry);
-        sb.append(successor == null ? " last" : " successor=" + successor.getEntry());
+        sb.append(source == null ? "" : (source.toString() + " :"));
+        sb.append(lineNumber == null ? "" : (lineNumber.toString() + ": "));
+        sb.append(entry.toString());
+        sb.append(successor == null ? "" : " successor=" + successor.getEntry());
         return sb.toString();
     }
 

@@ -391,6 +391,10 @@ public class OrderedEntriesTest {
                 "root2=9",
                 "root2.key4=10",
                 "root2.key4..key5=11");
+
+        String orderedAsString = orderedEntries.getOrderedAsString();
+        System.out.println(orderedAsString);
+
     }
 
 
@@ -418,15 +422,15 @@ public class OrderedEntriesTest {
                 switch (i) {
                     case 0:
                         assertEquals("key00=a", oe.getEntry().toString());
-                        assertEquals(0, oe.getLineNumber());
+                        assertEquals(Integer.valueOf(0), oe.getLineNumber());
                         break;
                     case 2:
                         assertEquals("key1=c", oe.getEntry().toString());
-                        assertEquals(0, oe.getLineNumber());
+                        assertEquals(Integer.valueOf(0), oe.getLineNumber());
                         break;
                     case 7:
                         assertEquals("key03=g", oe.getEntry().toString());
-                        assertEquals(7, oe.getLineNumber());
+                        assertEquals(Integer.valueOf(7), oe.getLineNumber());
                         break;
                     default:
                         break;

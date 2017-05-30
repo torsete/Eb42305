@@ -22,6 +22,9 @@ public class EntryReader<K, V> {
         this.source = source;
     }
 
+    EntryReader(Reader reader) {
+        this(reader, null);
+    }
 
     V getSource() {
         return source;
@@ -48,7 +51,7 @@ public class EntryReader<K, V> {
             }
             entry = readEntry(line);
         } while (entry == null);
-        return new OrderedEntry(entry, nextLineNumber - 1);
+        return new OrderedEntry(entry).setLineNumber(nextLineNumber - 1).setSource(source);
     }
 
     private String replaceTabs(String line) {
