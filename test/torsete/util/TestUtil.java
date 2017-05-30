@@ -21,10 +21,13 @@ public class TestUtil {
         folderFile.mkdir();
         Arrays.stream(folderFile.listFiles()).forEach(file -> System.out.print(file.getAbsolutePath()));
         testFolderName = folderFile.getAbsolutePath();
+        Arrays.stream(new File(testFolderName).listFiles()).forEach(f -> f.delete());
         return this;
     }
 
     public TestUtil teardownTestFolder() {
+
+
         return this;
     }
 
@@ -64,6 +67,10 @@ public class TestUtil {
 
     public BufferedReader getBufferedReader(String filename) throws IOException {
         return new BufferedReader(new FileReader(testFolderName + File.separator + filename));
+    }
+
+    public Reader getFileReader(String filename) throws IOException {
+        return new FileReader(testFolderName + File.separator + filename);
     }
 
     public String getContent(String filename) throws IOException {

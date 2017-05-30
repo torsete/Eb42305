@@ -5,16 +5,16 @@ import java.util.*;
 /**
  * Created by Torsten on 18.05.2017.
  */
-public class OrderedProperties extends OrderedEntries {
+public class OrderedProperties extends OrderedEntries<Object, Object> {
 
     private Properties properties;
 
     public OrderedProperties() {
         super();
         properties = new Properties();
-        setEntryConsumer((e1, e2) -> {
-            Object key = e1.getKey();
-            Object value = e1.getValue();
+        setEntryConsumer(e -> {
+            Object key = e.getKey();
+            Object value = e.getValue();
             if (properties.get(key) == null) {
                 put(key, new ArrayList<>());
             }

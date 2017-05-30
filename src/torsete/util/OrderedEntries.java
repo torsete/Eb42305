@@ -1,180 +1,65 @@
 package torsete.util;
 
 import java.io.*;
-import java.nio.charset.StandardCharsets;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Map;
-import java.util.Optional;
-import java.util.function.BiConsumer;
-import java.util.function.BiFunction;
+import java.util.function.Consumer;
+import java.util.function.Function;
 import java.util.function.Predicate;
 import java.util.stream.Stream;
 
-public class OrderedEntries {
-    protected List<Map.Entry<Object, Object>> entries;
-    protected List<Integer> linenumbers;
-    protected List<String> sourcenameStack;
+public class OrderedEntries<K, V> {
+    private EntryInput entryInput;
+    private EntryReaderStack entryReaderStack;
+    private Predicate<OrderedEntry<K, V>> includePredicate;
+    private Consumer<OrderedEntry<K, V>> entryConsumer;
+    private Function<OrderedEntry<K, V>, Boolean> endOfStreamFunction;
 
-    protected Predicate<Map.Entry<Object, Object>> includePredicate;
-    protected BiConsumer<Map.Entry<Object, Object>, Map.Entry<Object, Object>> entryConsumer;
-    protected BiFunction<Map.Entry<Object, Object>, Map.Entry<Object, Object>, Boolean> endOfStreamFunction;
-    protected EntrySupplier entrySupplier;
-    protected String sourcename;
-    private boolean keepEntries;
-    private int nextEntryIndex;
+    private Consumer<OrderedEntry<K, V>> handleDotsInKey;
+    private boolean isTabsInKeyEnabled;
 
 
     public OrderedEntries() {
         clear();
     }
 
+
     public synchronized OrderedEntries clear() {
-        entries = new ArrayList<>();
-        linenumbers = new ArrayList<>();
-        sourcenameStack = new ArrayList<>();
-        includePredicate = entry -> entry.getKey().toString().toLowerCase().equals("include");
-        entryConsumer = (e1, e2) -> {
+        entryInput = new EntryInput(false);
+        entryReaderStack = new EntryReaderStack();
+        enableDotsInKey(true);
+        enableTabsInKey(true);
+        includePredicate = entry -> entry.getKey().toString().toLowerCase().contains("include");
+        entryConsumer = oe -> {
         };
-        endOfStreamFunction = (e1, e2) -> e2 == null;
-        entrySupplier = new EntrySupplier();
-        enableTabsInKey(false);
-        enableDotsInKey(false);
-        keepEntries = true;
-        nextEntryIndex = 0;
+        endOfStreamFunction = oe -> false;
+        return this;
+    }
 
+    public OrderedEntries enableDotsInKey(boolean enabled) {
+        handleDotsInKey = enabled ? new DottedEntryKey() : e -> {
+        };
+        return this;
+    }
 
-        setEntryConsumer((e1, e2) -> {
-            es = new ArrayList<>();
-            es.add(e1);
-            es.add(e2);
-        });
+    public OrderedEntries enableTabsInKey(boolean enabled) {
+        isTabsInKeyEnabled = enabled;
         return this;
     }
 
 
-    List<Map.Entry<Object, Object>> es = new ArrayList<>();
-
-    public synchronized OrderedEntries load(String string) throws IOException {
-        StringReader stringReader = new StringReader(string);
-        load(stringReader);
-        stringReader.close();
-//        System.out.println("load() StringReader closed");
-        return this;
-    }
-
-    public synchronized OrderedEntries load(InputStream inputStream) throws IOException {
-        load(new InputStreamReader(inputStream));
-        inputStream.close();
-//        System.out.println("load() InputStream closed");
-        return this;
-    }
-
-    /**
-     * Required if using includes
-     *
-     * @param file
-     * @throws IOException
-     */
-    public OrderedEntries load(File file) throws IOException {
-        sourcename = file.getAbsolutePath();
-        sourcenameStack.add(sourcename); // Push
-        FileInputStream fileInputStream = new FileInputStream(file);
-        try {
-            load(fileInputStream);
-        } finally {
-            fileInputStream.close();
-//            System.out.println("load() FileInputStream closed");
+    public String getOrderedAsString() {
+        StringBuilder sb = new StringBuilder();
+        OrderedEntry<K, V> orderedEntry = entryInput.getFirstOrderedEntry();
+        while (orderedEntry != null) {
+            sb.append(orderedEntry.getLineNumber() + ": " + orderedEntry.getEntry() + "\n");
+            orderedEntry = orderedEntry.getSuccessor();
         }
-        sourcenameStack.remove(sourcename); //Pop
+
+        return sb.toString();
+    }
+
+    public OrderedEntries setEndOfStreamFunction(Function<OrderedEntry<K, V>, Boolean> endOfStreamFunction) {
+        this.endOfStreamFunction = endOfStreamFunction;
         return this;
-    }
-
-
-    public synchronized OrderedEntries load(Reader reader) throws IOException {
-        entrySupplier.setReader(reader);
-        Map.Entry<Object, Object> entry;
-        do {
-            entry = readNextEntry();
-        } while (entry != null);
-        return this;
-    }
-
-    public synchronized Stream<Map.Entry<Object, Object>> stream(String string) throws IOException {
-        StringReader stringReader = new StringReader(string);
-        return stream(stringReader);
-    }
-
-    public synchronized Stream<Stream<Map.Entry<Object, Object>>> streams(String string) throws IOException {
-        StringReader reader = new StringReader(string);
-        getEntrySupplier().setReader(reader);
-        return readingStreams(() -> {
-            reader.close();
-//            System.out.println("streams() Reader closed");
-        });
-    }
-
-    public synchronized Stream<Stream<Map.Entry<Object, Object>>> streams(Reader reader) throws IOException {
-        getEntrySupplier().setReader(reader);
-        return readingStreams(() -> {
-            try {
-                reader.close();
-//                System.out.println("streams() Reader closed");
-            } catch (IOException e) {
-                throw new RuntimeException(e);
-            }
-        });
-    }
-
-    public synchronized Stream<Map.Entry<Object, Object>> stream(File file) throws IOException {
-        setSourcename(file.getAbsolutePath());
-        FileInputStream fileInputStream = new FileInputStream(file);
-        return stream(fileInputStream);
-    }
-
-    public synchronized Stream<Stream<Map.Entry<Object, Object>>> streams(File file) throws IOException {
-        setSourcename(file.getAbsolutePath());
-        FileInputStream fileInputStream = new FileInputStream(file);
-        return streams(fileInputStream);
-    }
-
-
-    public synchronized Stream<Map.Entry<Object, Object>> stream(InputStream inputStream) throws IOException {
-        InputStreamReader reader = new InputStreamReader(inputStream);
-        getEntrySupplier().setReader(reader);
-        return readingStream(() -> {
-            try {
-                inputStream.close();
-//                System.out.println("stream() InputStream closed");
-            } catch (IOException e) {
-                throw new RuntimeException(e);
-            }
-        });
-    }
-
-    public synchronized Stream<Stream<Map.Entry<Object, Object>>> streams(InputStream inputStream) throws IOException {
-        InputStreamReader reader = new InputStreamReader(inputStream);
-        getEntrySupplier().setReader(reader);
-        return readingStreams(() -> {
-            try {
-                inputStream.close();
-//                System.out.println("streams() InputStream closed");
-            } catch (IOException e) {
-                throw new RuntimeException(e);
-            }
-        });
-    }
-
-    public Stream<Map.Entry<Object, Object>> stream(Reader reader) throws IOException {
-        getEntrySupplier().setReader(reader);
-        return readingStream(() -> {
-            try {
-                reader.close();
-//                System.out.println("stream() Reader closed");
-            } catch (IOException e) {
-                throw new RuntimeException(e);
-            }
-        });
     }
 
 
@@ -183,233 +68,272 @@ public class OrderedEntries {
      *
      * @param includePredicate
      */
-    public synchronized OrderedEntries setIncludePredicate(Predicate<Map.Entry<Object, Object>> includePredicate) {
+    public synchronized OrderedEntries setIncludePredicate(Predicate<OrderedEntry<K, V>> includePredicate) {
         this.includePredicate = includePredicate;
         return this;
     }
 
 
-    public OrderedEntries setEntryConsumer(BiConsumer<Map.Entry<Object, Object>, Map.Entry<Object, Object>> entryConsumer) {
+    public OrderedEntries setEntryConsumer(Consumer<OrderedEntry<K, V>> entryConsumer) {
         this.entryConsumer = entryConsumer;
         return this;
     }
 
+    public OrderedEntry<K, V> getFirstOrderedEntry() {
+        return entryInput.getFirstOrderedEntry();
+    }
 
-    public OrderedEntries enableTabsInKey(boolean enabled) {
-        entrySupplier.enableTabsInKey(enabled);
+    public OrderedEntries load(File file) throws IOException {
+        entryInput.setKeepEntries(true);
+        entryReaderStack.push(newEntryReader((V) file.getAbsolutePath()));
+        do {
+            entryInput.read();
+        } while (entryInput.getCurrentOrderedEntry() != null);
         return this;
     }
 
-    public OrderedEntries enableDotsInKey(boolean enabled) {
-        entrySupplier.enableDotsInKey(enabled);
+    public synchronized OrderedEntries load(Reader reader) throws IOException {
+        entryInput.setKeepEntries(true);
+        entryReaderStack.push(newEntryReader(reader));
+        do {
+            entryInput.read();
+        } while (entryInput.getCurrentOrderedEntry() != null);
         return this;
     }
 
-    public EntrySupplier getEntrySupplier() {
-        return entrySupplier;
+    public synchronized OrderedEntries load(String string) throws IOException {
+        return load(new StringReader(string));
     }
 
-    public boolean isTabsInKeyEnabled() {
-        return entrySupplier.isTabsInKeyEnabled();
+    public synchronized OrderedEntries load(InputStream inputStream) throws IOException {
+        return load(new InputStreamReader(inputStream));
     }
 
-    public boolean isDotsInKeyEnabled() {
-        return entrySupplier.isDotsInKeyEnabled();
+    public Stream<OrderedEntry<K, V>> stream(Reader reader) throws IOException {
+        entryReaderStack.push(newEntryReader(reader));
+        return readingStream();
     }
 
-    public void setSourcename(String sourcename) {
-        this.sourcename = sourcename;
+    public synchronized Stream<Stream<OrderedEntry<K, V>>> streams(Reader reader) throws IOException {
+        entryReaderStack.push(newEntryReader(reader));
+        return readingStreams();
     }
 
-    public OrderedEntries enableKeepEntries(boolean enabled) {
-        keepEntries = enabled;
-        return this;
+    public synchronized Stream<OrderedEntry<K, V>> stream(File file) throws IOException {
+        entryReaderStack.push(newEntryReader((V) file.getAbsolutePath()));
+        return readingStream();
     }
 
-    /**
-     * Slow!
-     */
-    public int getOrderedEntriesIndex(String key) {
-        for (int i = 0; i < entries.size(); i++) {
-            Map.Entry<Object, Object> entry = entries.get(i);
-            if (entry.getKey().equals(key)) {
-                return i;
-            }
-        }
-        return -1;
+    public synchronized Stream<Stream<OrderedEntry<K, V>>> streams(File file) throws IOException {
+        entryReaderStack.push(newEntryReader((V) file.getAbsolutePath()));
+        return readingStreams();
     }
 
-    /**
-     * Slow!
-     */
-    public boolean isUnique(String key) {
-        int index = getOrderedEntriesIndex(key);
-        if (index >= 0) {
-            for (int i = index + 1; i < entries.size(); i++) {
-                Map.Entry<Object, Object> entry = entries.get(i);
-                if (entry.getKey().equals(key)) {
-                    return false;
-                }
-            }
-        }
-        return true;
+    public synchronized Stream<OrderedEntry<K, V>> stream(String string) throws IOException {
+        return stream(new StringReader(string));
     }
 
-    /**
-     * Slow!
-     */
-    public Object readFirst(Object key) {
-        List<Map.Entry<Object, Object>> ops = entries;
-        Optional<Map.Entry<Object, Object>> entryOptional = ops.stream()
-                .filter(e -> e.getKey().equals(key)).findFirst();
-        return entryOptional.get().getValue();
+    public synchronized Stream<Stream<OrderedEntry<K, V>>> streams(String string) throws IOException {
+        return streams(new StringReader(string));
     }
 
-    public List<Map.Entry<Object, Object>> getEntries() {
-        return entries;
+    public Stream<OrderedEntry<K, V>> stream() {
+        return stream(new StreamEntryReader(getFirstOrderedEntry()));
     }
 
-    public List<Integer> getLinenumbers() {
-        return linenumbers;
+    public synchronized Stream<OrderedEntry<K, V>> stream(InputStream inputStream) throws IOException {
+        return stream(new InputStreamReader(inputStream));
     }
 
-    public int size() {
-        return entries.size();
+    public synchronized Stream<Stream<OrderedEntry<K, V>>> streams(InputStream inputStream) throws IOException {
+        return streams(new InputStreamReader(inputStream));
     }
 
-    public String getOrderedAsString() {
-        return getOrderedAsString("=");
+    private Stream<Stream<OrderedEntry<K, V>>> readingStreams() throws IOException {
+        return readingStreams(() -> {
+        });
     }
 
-    public String getOrderedAsString(String assignString) {
-        StringBuilder sb = new StringBuilder();
-        for (Map.Entry e : entries) {
-            String key = e.getKey().toString();
-            sb.append(new String((key + assignString + e.getValue() + "\n").getBytes(), StandardCharsets.ISO_8859_1));
-        }
-        return sb.toString();
-    }
-
-    public String getSourcename() {
-        return sourcename;
-    }
-
-    protected Map.Entry<Object, Object> readNextEntry() {
-        Map.Entry<Object, Object> entry = entrySupplier.get();
-        if (entry != null) {
-            boolean isInclude = includePredicate.test(entry);
-            if (isInclude) {
-                includeProperties(entry);
-            } else {
-                addProperty(entry, entrySupplier.getCurrentLineNumber());
-            }
-        }
-        return entry;
-    }
-
-    private void includeProperties(Map.Entry<Object, Object> entry) {
-        OrderedEntries includedOrderedEntries = new OrderedEntries()
-                .setEntryConsumer(entryConsumer)
-                .setIncludePredicate(includePredicate)
-                .setEndOfStreamFunction(endOfStreamFunction)
-                .enableKeepEntries(keepEntries)
-                .enableDotsInKey(isDotsInKeyEnabled())
-                .enableTabsInKey(isTabsInKeyEnabled())
-                .setSourcenameStack(sourcenameStack);
-
-        String includeSourcename = getAbsolutePath(entry.getValue().toString());
-        if (sourcenameStack.contains(includeSourcename)) {
-            throw new IllegalArgumentException("Circular reference from " + sourcename + " to " + includeSourcename);
-        }
-        try {
-            includedOrderedEntries.load(new File(includeSourcename));
-        } catch (IOException e) {
-            throw new IllegalArgumentException(sourcename + ": " + e.getMessage(), e);
-        }
-        entries.addAll(includedOrderedEntries.entries);
-        linenumbers.addAll(includedOrderedEntries.linenumbers);
-    }
-
-
-    protected OrderedEntries setSourcenameStack(List<String> sourcenameStack) {
-        this.sourcenameStack = sourcenameStack;
-        return this;
-    }
-
-    protected synchronized void addProperty(Map.Entry<Object, Object> entry, Integer lineNumber) {
-        if (keepEntries) {
-            this.linenumbers.add(lineNumber);
-            this.entries.add(entry);
-        }
-        entryConsumer.accept(entry, entrySupplier.getNextEntry());
-    }
-
-
-    private String getAbsolutePath(String filename) {
-        filename = new File(this.sourcename).getParent() + File.separator + filename;
-        return new File(filename).getAbsolutePath();
-    }
-
-
-    public OrderedEntries setEndOfStreamFunction(BiFunction<Map.Entry<Object, Object>, Map.Entry<Object, Object>, Boolean> endOfStreamFunction) {
-        this.endOfStreamFunction = endOfStreamFunction;
-        return this;
-    }
-
-
-    Stream<Map.Entry<Object, Object>> readingStream() {
+    private Stream<OrderedEntry<K, V>> readingStream() {
         return readingStream(() -> {
         });
     }
 
-    Stream<Map.Entry<Object, Object>> readingStream(Runnable onClose) {
-//        return new BaseSpliterator<Map.Entry<Object, Object>>()
-//                .setNextSupplier(() -> {
-//                    readNextEntry();
-//                    return es.get(0);
-//                })
-//                .setIsLastSupplier(() ->
-//                        (es.get(0) == null || endOfStreamFunction.apply(es.get(0), es.get(1))))
-//                .setOnClose(onClose)
-//                .stream();
-//    }
-//
-//    Stream<Stream<Map.Entry<Object, Object>>> readingStreams(Runnable onClose) {
-//        return new BaseSpliterator<Stream<Map.Entry<Object, Object>>>()
-//                .setNextSupplier(() -> readingStream())
-//                .setIsLastSupplier(() -> es.get(0) == null)
-//                .setOnClose(onClose)
-//                .stream();
-//    }
-        return new BaseSpliterator<Map.Entry<Object, Object>>()
-                .setNextSupplier(() -> readNextEntry())
+    private Stream<OrderedEntry<K, V>> readingStream(Runnable onClose) {
+        return new BaseSpliterator<OrderedEntry<K, V>>()
+                .setNextSupplier(() -> {
+                    try {
+                        return entryInput.read();
+                    } catch (IOException e) {
+                        throw new RuntimeException(e);
+                    }
+                })
                 .setIsLastSupplier(() ->
-                        (entrySupplier.getNextEntry() == null || endOfStreamFunction.apply(entrySupplier.getCurrentEntry(), entrySupplier.getNextEntry())))
+                        entryInput.getNextOrderedEntry() == null || endOfStreamFunction.apply(entryInput.getCurrentOrderedEntry()))
                 .setOnClose(onClose)
                 .stream();
     }
 
-    Stream<Stream<Map.Entry<Object, Object>>> readingStreams(Runnable onClose) {
-        return new BaseSpliterator<Stream<Map.Entry<Object, Object>>>()
+    private Stream<Stream<OrderedEntry<K, V>>> readingStreams(Runnable onClose) {
+        return new BaseSpliterator<Stream<OrderedEntry<K, V>>>()
                 .setNextSupplier(() -> readingStream())
-                .setIsLastSupplier(() -> entrySupplier.getNextEntry() == null)
+                .setIsLastSupplier(() -> entryInput.getNextOrderedEntry() == null)
                 .setOnClose(onClose)
                 .stream();
     }
 
-    Stream<Map.Entry<Object, Object>> stream() {
-        return new BaseSpliterator<Map.Entry<Object, Object>>()
-                .setNextSupplier(() -> entries.get(nextEntryIndex++))
-                .setIsLastSupplier(() -> nextEntryIndex >= entries.size() || endOfStreamFunction.apply(entries.get(nextEntryIndex - 1), entries.get(nextEntryIndex)))
+
+    private Stream<OrderedEntry<K, V>> stream(StreamEntryReader streamEntryReader) {
+        return new BaseSpliterator<OrderedEntry<K, V>>()
+                .setNextSupplier(() -> streamEntryReader.readEntry())
+                .setIsLastSupplier(() -> streamEntryReader.getNextEntry() == null || endOfStreamFunction.apply(streamEntryReader.getCurrentEntry()))
                 .stream();
+
     }
 
-
-    public synchronized Stream<Stream<Map.Entry<Object, Object>>> streams() {
-        return new BaseSpliterator<Stream<Map.Entry<Object, Object>>>()
-                .setNextSupplier(() -> stream())
-                .setIsLastSupplier(() -> nextEntryIndex >= entries.size())
+    public synchronized Stream<Stream<OrderedEntry<K, V>>> streams() {
+        StreamEntryReader streamEntryReader = new StreamEntryReader(getFirstOrderedEntry());
+        return new BaseSpliterator<Stream<OrderedEntry<K, V>>>()
+                .setNextSupplier(() -> stream(streamEntryReader))
+                .setIsLastSupplier(() -> streamEntryReader.getNextEntry() == null)
                 .stream();
+
+    }
+
+    /**
+     * Fetches the next input value from the currently active {@link EntryReader} (the one which is on top of {@link EntryReaderStack}
+     *
+     * @return
+     * @throws IOException
+     */
+    private OrderedEntry<K, V> readNext() throws IOException {
+        OrderedEntry<K, V> orderedEntry = entryReaderStack.top().readEntry();
+        if (orderedEntry != null && includePredicate.test(orderedEntry)) {
+            V source = orderedEntry.getValue();
+            entryReaderStack.push(newEntryReader(source));
+            return readNext();
+        }
+        while (!entryReaderStack.empty() && orderedEntry == null) {
+            entryReaderStack.pop().close();
+            if (!entryReaderStack.empty()) {
+                orderedEntry = entryReaderStack.top().readEntry();
+                if (orderedEntry != null && includePredicate.test(orderedEntry)) {
+                    V source = orderedEntry.getValue();
+                    entryReaderStack.push(newEntryReader(source));
+                    return readNext();
+                }
+
+            }
+        }
+        return orderedEntry;
+    }
+
+    private EntryReader newEntryReader(V source) throws FileNotFoundException {
+        String sourceName = source.toString().toLowerCase();
+        String fileName = sourceName;
+        if (entryReaderStack.size() > 0) {
+            Object parentSource = entryReaderStack.top().getSource();
+            if (parentSource == null) {
+                throw new IllegalArgumentException("Included source could not be located");
+            }
+            String fileLocation = new File(parentSource.toString()).getParent();
+            fileName = fileLocation + File.separator + sourceName;
+        }
+        File file = new File(fileName);
+        Reader reader = new FileReader(file);
+        EntryReader entryReader = new EntryReader(reader, fileName).enableTabsInKey(isTabsInKeyEnabled);
+        return entryReader;
+    }
+
+    private EntryReader newEntryReader(Reader reader) {
+        EntryReader entryReader = new EntryReader(reader, null).enableTabsInKey(isTabsInKeyEnabled);
+        return entryReader;
+    }
+
+    private class EntryInput {
+        private OrderedEntry<K, V> firstOrderedEntry;
+        private OrderedEntry<K, V> currentOrderedEntry;
+        private OrderedEntry<K, V> nextOrderedEntry;
+        private boolean keepEntries;
+
+        public EntryInput(boolean keepEntries) {
+            this.keepEntries = keepEntries;
+        }
+
+
+        /**
+         * Each call results a new value in {@link #currentOrderedEntry} and {@link #nextOrderedEntry}. {@link #currentOrderedEntry}==null means end of input
+         * <p>
+         * {@link #currentOrderedEntry} gets the value {@link #nextOrderedEntry}, and {@link #nextOrderedEntry} gets "the next" input value (fetched with  {@link #readNext()} .
+         *
+         * @throws IOException
+         */
+        public OrderedEntry<K, V> read() throws IOException {
+            if (currentOrderedEntry == null) {  // First read
+                currentOrderedEntry = readNext();
+                if (currentOrderedEntry != null) {
+                    handleDotsInKey.accept(currentOrderedEntry);
+                }
+                if (keepEntries) {
+                    firstOrderedEntry = currentOrderedEntry;
+                }
+            } else {  // Next reads
+                currentOrderedEntry = nextOrderedEntry;
+            }
+            if (currentOrderedEntry == null) {  // End of input
+                nextOrderedEntry = null;
+            } else {
+                nextOrderedEntry = readNext();
+            }
+            if (currentOrderedEntry != null) {
+                currentOrderedEntry.setSuccessor(nextOrderedEntry);
+            }
+            if (currentOrderedEntry != null) {
+                handleDotsInKey.accept(currentOrderedEntry);
+                entryConsumer.accept(currentOrderedEntry);
+            }
+            return currentOrderedEntry;
+        }
+
+        public void setKeepEntries(boolean keepEntries) {
+            this.keepEntries = keepEntries;
+        }
+
+        public OrderedEntry<K, V> getFirstOrderedEntry() {
+            return firstOrderedEntry;
+        }
+
+        public OrderedEntry<K, V> getCurrentOrderedEntry() {
+            return currentOrderedEntry;
+        }
+
+        public OrderedEntry<K, V> getNextOrderedEntry() {
+            return nextOrderedEntry;
+        }
+
+    }
+
+    private class StreamEntryReader {
+        OrderedEntry<K, V> nextEntry;
+        OrderedEntry<K, V> currentEntry;
+
+        public StreamEntryReader(OrderedEntry<K, V> firstOrderedEntry) {
+            nextEntry = firstOrderedEntry;
+        }
+
+        private OrderedEntry<K, V> readEntry() {
+            currentEntry = nextEntry;
+            nextEntry = nextEntry.getSuccessor();
+            return currentEntry;
+        }
+
+        public OrderedEntry<K, V> getNextEntry() {
+            return nextEntry;
+        }
+
+        public OrderedEntry<K, V> getCurrentEntry() {
+            return currentEntry;
+        }
     }
 
 
