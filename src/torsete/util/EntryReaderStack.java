@@ -5,7 +5,7 @@ import java.util.List;
 import java.util.Optional;
 
 /**
- * Created by Torsten on 28.05.2017.
+ * A stack of {@EntryReader}'s. Each is responsible for fetching input from one source (file of entries)
  */
 class EntryReaderStack<K, V> {
     private List<EntryReader<K, V>> entryReaders;
@@ -14,10 +14,13 @@ class EntryReaderStack<K, V> {
         entryReaders = new ArrayList<>();
     }
 
+    /**
+     * Sustains no source duplicates in stack
+     */
     public void push(EntryReader<K, V> entryreader) {
         Optional<V> any = entryReaders.stream()
-                .map(er -> er.getSource())
-                .filter(s -> s.equals(entryreader.getSource()))
+                .map(entryReader -> entryReader.getSource())
+                .filter(source -> source.equals(entryreader.getSource()))
                 .findAny();
         if (any.isPresent()) {
             throw new IllegalArgumentException(entryreader.getSource() + " is self referencing");
@@ -37,11 +40,7 @@ class EntryReaderStack<K, V> {
     }
 
     public boolean empty() {
-        return size() == 0;
-    }
-
-    public int size() {
-        return entryReaders.size();
+        return entryReaders.size() == 0;
     }
 
 }

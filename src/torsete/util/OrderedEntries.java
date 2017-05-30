@@ -231,7 +231,7 @@ public class OrderedEntries<K, V> {
     private EntryReader newEntryReader(V source) throws FileNotFoundException {
         String sourceName = source.toString().toLowerCase();
         String fileName = sourceName;
-        if (entryReaderStack.size() > 0) {
+        if (!entryReaderStack.empty()) {
             Object parentSource = entryReaderStack.top().getSource();
             if (parentSource == null) {
                 throw new IllegalArgumentException("Included source could not be located");
@@ -250,23 +250,30 @@ public class OrderedEntries<K, V> {
         return entryReader;
     }
 
+    /**
+     * Provides reading ef entries and sustain link to the next succeding  entry
+     */
     private class EntryInput {
         private OrderedEntry<K, V> firstOrderedEntry;
         private OrderedEntry<K, V> currentOrderedEntry;
         private OrderedEntry<K, V> nextOrderedEntry;
         private boolean keepEntries;
 
+        /**
+         * @param keepEntries If true all entries will be available for later access (with {@link #getFirstOrderedEntry()} as the entrance.
+         *                    If false the entries will be a matter for GC.
+         */
         public EntryInput(boolean keepEntries) {
             this.keepEntries = keepEntries;
         }
 
 
         /**
-         * Each call results a new value in {@link #currentOrderedEntry} and {@link #nextOrderedEntry}. {@link #currentOrderedEntry}==null means end of input
+         * Each call results a new value in {@link #currentOrderedEntry} and {@link #nextOrderedEntry}.
+         * {@link #currentOrderedEntry}==null means end of input
          * <p>
-         * {@link #currentOrderedEntry} gets the value {@link #nextOrderedEntry}, and {@link #nextOrderedEntry} gets "the next" input value (fetched with  {@link #readNext()} .
-         *
-         * @throws IOException
+         * {@link #currentOrderedEntry} gets the value {@link #nextOrderedEntry},
+         * and {@link #nextOrderedEntry} gets "the next" input value (fetched with  {@link #readNext()} .
          */
         public OrderedEntry<K, V> read() throws IOException {
             if (currentOrderedEntry == null) {  // First read
@@ -280,6 +287,9 @@ public class OrderedEntries<K, V> {
             } else {  // Next reads
                 currentOrderedEntry = nextOrderedEntry;
             }
+
+            // Right here a current entry is set. It may be null if end of file
+
             if (currentOrderedEntry == null) {  // End of input
                 nextOrderedEntry = null;
             } else {
@@ -288,6 +298,11 @@ public class OrderedEntries<K, V> {
             if (currentOrderedEntry != null) {
                 currentOrderedEntry.setSuccessor(nextOrderedEntry);
             }
+
+            // Rigth her we still have current entry.
+            // And we have the next entry (it may be null if end of file)
+            // And the current entry has link to the next entry (so to say...)
+
             if (currentOrderedEntry != null) {
                 handleDotsInKey.accept(currentOrderedEntry);
                 entryConsumer.accept(currentOrderedEntry);
@@ -313,10 +328,16 @@ public class OrderedEntries<K, V> {
 
     }
 
+    /**
+     * Reading of {@link  OrderedEntry<K, V>}'s
+     */
     private class StreamEntryReader {
         OrderedEntry<K, V> nextEntry;
         OrderedEntry<K, V> currentEntry;
 
+        /**
+         * Identifies where to start reading
+         */
         public StreamEntryReader(OrderedEntry<K, V> firstOrderedEntry) {
             nextEntry = firstOrderedEntry;
         }

@@ -7,7 +7,11 @@ import java.util.stream.Stream;
 import java.util.stream.StreamSupport;
 
 /**
- * Created by Torsten on 22.05.2017.
+ * Facilitates streaming from a {@link Supplier<T>} which delivers the stream elements (T),
+ * and a {@link Supplier<Boolean>} which controls when the stream should be closed.
+ * <p>
+ * A {@link Runnable} to be executed when the stream is closed is optional.
+ * But nice to have if e.g. a Reader or the like should be closed
  */
 public class BaseSpliterator<T> extends Spliterators.AbstractSpliterator<T> {
     private Stream<T> stream;

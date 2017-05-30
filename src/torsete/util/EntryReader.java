@@ -8,13 +8,21 @@ import java.util.Map;
 import java.util.Properties;
 
 /**
- * Created by Torsten on 28.05.2017.
+ * Fetches input from a Reader.
  */
 public class EntryReader<K, V> {
+    /**
+     * Current line number defined by the BufferedReader
+     */
     private int nextLineNumber;
-
     private BufferedReader bufferedReader;
+    /**
+     * If true tab chars to the left of an entry key is replaced by dots
+     */
     private boolean tabsInKeyEnabled;
+    /**
+     * Optional identification of source
+     */
     private V source;
 
     EntryReader(Reader reader, V source) {
@@ -39,6 +47,9 @@ public class EntryReader<K, V> {
         return this;
     }
 
+    /**
+     * Fetches next entry
+     */
     OrderedEntry<K, V> readEntry() throws IOException {
         Map.Entry<K, V> entry = null;
         do {
@@ -47,14 +58,14 @@ public class EntryReader<K, V> {
                 return null;
             }
             if (tabsInKeyEnabled) {
-                line = replaceTabs(line);
+                line = replaceTabsBeforeEntryKey(line);
             }
             entry = readEntry(line);
         } while (entry == null);
         return new OrderedEntry(entry).setLineNumber(nextLineNumber - 1).setSource(source);
     }
 
-    private String replaceTabs(String line) {
+    private String replaceTabsBeforeEntryKey(String line) {
         StringBuilder sb = new StringBuilder();
         for (int i = 0; i < line.length(); i++) {
             char c = line.charAt(i);
@@ -68,7 +79,11 @@ public class EntryReader<K, V> {
         return sb.toString();
     }
 
-
+    /**
+     * Parse a string which may contain en entry
+     *
+     * @return Null if the input line does not contain a full entry
+     */
     private Map.Entry readEntry(String string) throws IOException {
         Properties p = new Properties();
         StringReader stringReader = new StringReader(string);
@@ -76,6 +91,11 @@ public class EntryReader<K, V> {
         return p.size() == 0 ? null : p.entrySet().iterator().next();
     }
 
+    /**
+     * Attempts to collect an ntry
+     *
+     * @return Not null. May have the length 0.
+     */
     private String readLine() throws IOException {
         String line;
         line = bufferedReader.readLine();
