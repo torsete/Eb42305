@@ -35,17 +35,22 @@ public class TestUtil {
         return testFolderName;
     }
 
-    public void writeFile(String filename, String content) throws IOException {
-        Writer writer = new BufferedWriter(new FileWriter(testFolderName + File.separator + filename));
-        writer.write(content);
-        writer.close();
-        System.out.println("******************************");
-        System.out.println(new File(filename).getAbsoluteFile() + ":");
-        System.out.println(content);
-        System.out.println("******************************");
+    public void writeFile(String filename, String content) {
+        Writer writer = null;
+        try {
+            writer = new BufferedWriter(new FileWriter(testFolderName + File.separator + filename));
+            writer.write(content);
+            writer.close();
+            System.out.println("******************************");
+            System.out.println(new File(filename).getAbsoluteFile() + ":");
+            System.out.println(content);
+            System.out.println("******************************");
+        } catch (IOException e) {
+            throw new RuntimeException(e);
+        }
     }
 
-    public void writeFile(String filename, String... lines) throws IOException {
+    public void writeFile(String filename, String... lines) {
         writeFile(filename, Arrays.stream(lines).collect(Collectors.joining("\n")));
     }
 
@@ -69,8 +74,12 @@ public class TestUtil {
         return new BufferedReader(new FileReader(testFolderName + File.separator + filename));
     }
 
-    public Reader getFileReader(String filename) throws IOException {
-        return new FileReader(testFolderName + File.separator + filename);
+    public Reader getFileReader(String filename) {
+        try {
+            return new FileReader(testFolderName + File.separator + filename);
+        } catch (FileNotFoundException e) {
+            throw new RuntimeException(e);
+        }
     }
 
     public String getContent(String filename) throws IOException {

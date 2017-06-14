@@ -1,20 +1,19 @@
-package torsete.util;
+package torsete.util.entry;
 
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
+import torsete.util.TestUtil;
 
 import java.io.FileNotFoundException;
 import java.io.IOException;
-import java.util.ArrayList;
-import java.util.List;
 import java.util.Properties;
 import java.util.function.Consumer;
-import java.util.function.Function;
-import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 import static junit.framework.TestCase.*;
+import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertTrue;
 
 /**
  * Created by Torsten on 18.05.2017.
@@ -183,15 +182,38 @@ public class OrderedEntriesTest {
                 "key3=3",
                 "");
 
-        testUtil.writeFile("testA",
+        testUtil.writeFile("testB",
                 "keyA1=A1",
                 "");
 
 
         try {
-            orderedEntries.load(testUtil.getFileReader("test"));
-            fail("Expects an IllegalArgumentException");
-        } catch (IllegalArgumentException e) {
+            orderedEntries.load(testUtil.getFile("test"));
+            fail("Expects an RuntimeException");
+        } catch (RuntimeException e) {
+            assertEquals(FileNotFoundException.class, e.getCause().getClass());
+        }
+    }
+
+    @Test
+    public void testSelfReferencingInclude() throws IOException {
+        testUtil.writeFile("test",
+                "key1=1",
+                "include=testA",
+                "key2=2",
+                "key3=3",
+                "");
+
+        testUtil.writeFile("testA",
+                "include=testA",
+                "");
+
+
+        try {
+            orderedEntries.load(testUtil.getFile("test"));
+            fail("Expects an RuntimeException");
+        } catch (RuntimeException e) {
+            assertTrue(e.getMessage().contains("is self referencing"));
         }
     }
 
@@ -207,9 +229,9 @@ public class OrderedEntriesTest {
                 "");
 
         orderedEntries.load(testUtil.getFile("test"));
-        verify(orderedEntries, "key1=a1",
+        verify(orderedEntries, "key1=a 1",
                 "key2=b\\",
-                "key3=cde ");
+                "key3=c d e ");
 
     }
 
@@ -287,8 +309,9 @@ public class OrderedEntriesTest {
 
         try {
             orderedEntries.load(testUtil.getFile("test"));
-            fail("Expects an FileNotFoundException");
-        } catch (FileNotFoundException e) {
+            fail("Expects an RuntimeException");
+        } catch (RuntimeException e) {
+            assertEquals(FileNotFoundException.class, e.getCause().getClass());
         }
     }
 
@@ -298,8 +321,9 @@ public class OrderedEntriesTest {
 
         try {
             orderedEntries.load(testUtil.getFile("test"));
-            fail("Expects an FileNotFoundException");
-        } catch (FileNotFoundException e) {
+            fail("Expects an RuntimeException");
+        } catch (RuntimeException e) {
+            assertEquals(FileNotFoundException.class, e.getCause().getClass());
         }
     }
 
@@ -606,11 +630,7 @@ public class OrderedEntriesTest {
             }
         });
         verifyNull.accept(oes -> {
-            try {
-                oes.stream(testUtil.getFile("test"));
-            } catch (IOException e) {
-                fail(e.getMessage());
-            }
+            oes.stream(testUtil.getFile("test"));
         });
         verifyNull.accept(oes -> {
             try {
@@ -635,18 +655,14 @@ public class OrderedEntriesTest {
             }
         });
         verifyNotNull.accept(oes -> {
-            try {
+
                 oes.load(testUtil.getFile("test")).stream();
-            } catch (IOException e) {
-                fail(e.getMessage());
-            }
+
         });
         verifyNotNull.accept(oes -> {
-            try {
+
                 oes.load(testUtil.getFileReader("test")).stream();
-            } catch (IOException e) {
-                fail(e.getMessage());
-            }
+
         });
         verifyNotNull.accept(oes -> {
             try {
@@ -665,169 +681,6 @@ public class OrderedEntriesTest {
 
     }
 
-    /**
-     * Test input type x One Stream/Stream of one Stream/Stream of Streams
-     * <p>
-     * Input type is File, Reader, InputStream or String
-     *
-     * @throws IOException
-     */
-    @Test
-    public void testStreamOfStream() throws IOException {
-        testUtil.writeFile("test",
-                "key1=a",
-                ".key11=b",
-                ".key12=c",
-                "key2=d",
-                ".key21=e",
-                ".key22=e",
-                ".key23=e",
-                ".key24=e",
-                ".key25=e",
-                ".key26=e");
-
-        Function<OrderedEntry<Object, Object>, Boolean> endOfStreamFunction = oe -> oe.getSuccessor().getKey().toString().indexOf('.') < 0;
-
-
-        List<Stream<Stream<OrderedEntry<Object, Object>>>> streamss = new ArrayList<>(); // Stream of Stream
-        List<Stream<Stream<OrderedEntry<Object, Object>>>> streamss0 = new ArrayList<>(); // Stream of one Stream
-        List<Stream<OrderedEntry<Object, Object>>> streams = new ArrayList<>(); // One Stream
-        streamss0.add(new OrderedEntries()
-                .enableDotsInKey(true)
-                .streams(testUtil.getFile("test")));
-        streamss0.add(new OrderedEntries()
-                .enableDotsInKey(true)
-                .load(testUtil.getFile("test"))
-                .streams());
-        streams.add(new OrderedEntries()
-                .enableDotsInKey(true)
-                .stream(testUtil.getFile("test")));
-        streams.add(new OrderedEntries()
-                .enableDotsInKey(true)
-                .load(testUtil.getFile("test"))
-                .stream());
-
-
-        streamss0.add(new OrderedEntries()
-                .enableDotsInKey(true)
-                .streams(testUtil.getContent("test")));
-        streamss0.add(new OrderedEntries()
-                .enableDotsInKey(true)
-                .load(testUtil.getContent("test"))
-                .streams());
-        streams.add(new OrderedEntries()
-                .enableDotsInKey(true)
-                .stream(testUtil.getContent("test")));
-        streams.add(new OrderedEntries()
-                .enableDotsInKey(true)
-                .load(testUtil.getContent("test"))
-                .stream());
-        streamss0.add(new OrderedEntries()
-                .enableDotsInKey(true)
-                .streams(testUtil.getInputStream("test")));
-        streamss0.add(new OrderedEntries()
-                .enableDotsInKey(true)
-                .load(testUtil.getInputStream("test"))
-                .streams());
-        streams.add(new OrderedEntries()
-                .enableDotsInKey(true)
-                .stream(testUtil.getInputStream("test")));
-        streams.add(new OrderedEntries()
-                .enableDotsInKey(true)
-                .load(testUtil.getInputStream("test"))
-                .stream());
-        streamss0.add(new OrderedEntries()
-                .enableDotsInKey(true)
-                .streams(testUtil.getBufferedReader("test")));
-        streamss0.add(new OrderedEntries()
-                .enableDotsInKey(true)
-                .load(testUtil.getBufferedReader("test"))
-                .streams());
-        streams.add(new OrderedEntries()
-                .enableDotsInKey(true)
-                .stream(testUtil.getBufferedReader("test")));
-        streams.add(new OrderedEntries()
-                .enableDotsInKey(true)
-                .load(testUtil.getBufferedReader("test"))
-                .stream());
-
-        streamss.add(new OrderedEntries()
-                .enableDotsInKey(true)
-                .setEndOfStreamFunction(endOfStreamFunction)
-                .streams(testUtil.getFile("test")));
-        streamss.add(new OrderedEntries()
-                .enableDotsInKey(true)
-                .load(testUtil.getFile("test"))
-                .setEndOfStreamFunction(endOfStreamFunction)
-                .streams());
-        streamss.add(new OrderedEntries()
-                .enableDotsInKey(true)
-                .setEndOfStreamFunction(endOfStreamFunction)
-                .streams(testUtil.getContent("test")));
-        streamss.add(new OrderedEntries()
-                .enableDotsInKey(true)
-                .load(testUtil.getContent("test"))
-                .setEndOfStreamFunction(endOfStreamFunction)
-                .streams());
-        streamss.add(new OrderedEntries()
-                .enableDotsInKey(true)
-                .setEndOfStreamFunction(endOfStreamFunction)
-                .streams(testUtil.getInputStream("test")));
-        streamss.add(new OrderedEntries()
-                .enableDotsInKey(true)
-                .load(testUtil.getInputStream("test"))
-                .setEndOfStreamFunction(endOfStreamFunction)
-                .streams());
-        streamss.add(new OrderedEntries()
-                .enableDotsInKey(true)
-                .setEndOfStreamFunction(endOfStreamFunction)
-                .streams(testUtil.getBufferedReader("test")));
-        streamss.add(new OrderedEntries()
-                .enableDotsInKey(true)
-                .load(testUtil.getBufferedReader("test"))
-                .setEndOfStreamFunction(endOfStreamFunction)
-                .streams());
-
-
-        int id = 0;
-        for (Stream<OrderedEntry<Object, Object>> s : streams) {
-            assertEquals(id + " ", 10, s.count());
-            id++;
-        }
-
-        for (Stream<Stream<OrderedEntry<Object, Object>>> ss : streamss0) {
-            int[] streamIndex = new int[1];
-            int[] subStreamIndex = new int[100];
-            ss.forEach(s -> {
-                s.forEach(e -> {
-                    System.out.println(streamIndex[0] + ":" + subStreamIndex[streamIndex[0]] + " " + e);
-                    subStreamIndex[streamIndex[0]]++;
-                });
-                streamIndex[0]++;
-            });
-
-            assertEquals(1, streamIndex[0]);
-            assertEquals(10, subStreamIndex[0]);
-        }
-
-        for (Stream<Stream<OrderedEntry<Object, Object>>> ss : streamss) {
-            int[] streamIndex = new int[1];
-            int[] subStreamIndex = new int[100];
-            ss.forEach(s -> {
-                s.forEach(e -> {
-                    System.out.println(streamIndex[0] + ":" + subStreamIndex[streamIndex[0]] + " " + e);
-                    subStreamIndex[streamIndex[0]]++;
-                });
-                streamIndex[0]++;
-            });
-
-            assertEquals(2, streamIndex[0]);
-            assertEquals(3, subStreamIndex[0]);
-            assertEquals(7, subStreamIndex[1]);
-        }
-
-
-    }
 
     @Test
     public void showStreamCase() throws IOException {
@@ -853,146 +706,39 @@ public class OrderedEntriesTest {
                 ".trailerr  A text",
                 "");
 
-        Consumer<Stream<OrderedEntry<Object, Object>>> formEntriesConsumer = s -> {
+        Stream<OrderedEntry<Object, Object>> stream = orderedEntries.stream(testUtil.getInputStream("test"));
+        stream.forEach(e -> {
             System.out.println("-------------------");
-            System.out.println(s.map(e -> e.toString()).collect(Collectors.joining("\n")));
+            System.out.println("" + e);
             System.out.println("-------------------");
-        };
-
-        orderedEntries.enableDotsInKey(true);
-        orderedEntries.enableTabsInKey(true);
-        orderedEntries.setEndOfStreamFunction(oe -> oe.getSuccessor().getKey().toString().indexOf('.') < 0);
-
-        Stream<Stream<OrderedEntry<Object, Object>>> streams = orderedEntries.streams(testUtil.getFile("test"));
-        streams.forEach(s -> {
-            formEntriesConsumer.accept(s);
         });
-
-
-        orderedEntries.clear();
-        orderedEntries.enableDotsInKey(true);
-        orderedEntries.setEndOfStreamFunction(oe -> oe.getSuccessor().getKey().toString().indexOf('.') < 0);
-        orderedEntries.load(testUtil.getFile("test"));
-        streams = orderedEntries.streams();
-        streams.forEach(s -> {
-            formEntriesConsumer.accept(s);
-        });
-
 
     }
-//
-//
-//    private void verifyEntry(String expectedKey, String expectedValue, Map.Entry<Object, Object> entry) {
-//        assertEquals(expectedKey, entry.getKey().toString());
-//        assertEquals(expectedValue, entry.getValue().toString());
-//    }
-//
-//
-//    /**
-//     * Tjekker at værdier er ok ift. Properties indlæst via fil til en sædvanlig Properties
-//     *
-//     * @param orderedEntries
-//     */
-//    private void verifyValuesIsEqualsToStandardProperties(OrderedEntries orderedEntries) {
-//        File file = new File(orderedEntries.getSourceName());
-//        Properties standardProperties = new Properties();
-//        try {
-//            standardProperties.load(new FileInputStream(file));
-//        } catch (IOException e) {
-//            fail(e.getMessage());
-//        }
-//
-//
-//        assertTrue(orderedEntries.getEntries().size() >= orderedEntries.size());
-//
-//        Enumeration<?> enumeration = standardProperties.propertyNames();
-//        while (enumeration.hasMoreElements()) {
-//            String key = enumeration.nextElement().toString();
-//            if (key.contains("include")) {
-//                continue;
-//            }
-//            verifyValue(orderedEntries, key, orderedEntries.readFirst(key).toString());
-//        }
-//
-//    }
-//
-//    private void verifyValues() {
-//        assertTrue(orderedEntries.size() > 0);
-//        assertEquals(orderedEntries.size(), orderedEntries.getEntries().size());
-//        int count = 0;
-//        verifyValuesIsEqualsToStandardProperties(orderedEntries);
-//
-//    }
-//
-//    private void verifyValue(OrderedEntries orderedEntries, String key, String expctedValue) {
-//        assertEquals(orderedEntries.getSourceName() + " key=" + key, expctedValue, orderedEntries.readFirst(key));
-//        int index = orderedEntries.getOrderedEntriesIndex(key);
-//        assertTrue(orderedEntries.getSourceName() + " key=" + key, index >= 0);
-//        assertEquals(orderedEntries.getSourceName() + " key=" + key, key, orderedEntries.getEntries().get(index).getKey());
-//        if (orderedEntries.isUnique(key)) {
-//            assertEquals(orderedEntries.getSourceName() + " key=" + key, expctedValue, orderedEntries.getEntries().get(index).getValue());
-//
-//        }
-//    }
-//
-//    private void verifyValue(String key, String expctedValue) {
-//        verifyValue(orderedEntries, key, expctedValue);
-//    }
-//
-//    List<String> filenames = new ArrayList<>();
-//
-//    private void testConfig(String foldername) throws IOException {
-//        for (File file : new File(foldername).listFiles()) {
-//            String filename = file.getAbsolutePath();
-//            if (file.isDirectory()) {
-//                testConfig(filename);
-//            } else {
-//                testConfigfile(filename);
-//                filename = filename.replaceAll("\\\\", "\\\\\\\\");
-////                if (!filenames.contains(filename)) {
-//                filenames.add(filename);
-////                }
-//            }
-//        }
-//    }
-//
-//    private void testConfigfile(String filename) throws IOException {
-//        File file = new File(filename);
-//        OrderedEntries orderedEntries = new OrderedEntries().setIncludePredicate(includeKeyPredicate);
-//        orderedEntries.load(file);
-//
-//        assertTrue(filename, orderedEntries.getEntries().size() >= orderedEntries.size());
-//        if (orderedEntries.size() > 0) {
-//            assertTrue(filename, orderedEntries.getEntries().size() > 0);
-//        }
-//
-//        System.out.println();
-//        System.out.println("Undersøger " + orderedEntries.getSourceName());
-//
-//        traverseSequentialProperties(orderedEntries, 0);
-//    }
-//
-//    private void traverseSequentialProperties(OrderedEntries orderedEntries, int level) {
-//
-//        String vistFilnavn = new File(orderedEntries.getSourceName()).getParentFile().getName() + "/" + new File(orderedEntries.getSourceName()).getName();
-//        File file = new File(orderedEntries.getSourceName());
-//        Properties properties = new Properties();
-//        try {
-//            properties.load(new FileInputStream(file));
-//        } catch (IOException e) {
-//            fail(e.getMessage());
-//        }
-//
-//
-//        String indent = "";// indentTextHelper.trim("", level * 2, ' ');
-//        System.out.println(indent + vistFilnavn +
-//                " global=" + (orderedEntries.size() == properties.size() ? "" : (orderedEntries.size() + " ")) +
-//                "lokal=" + properties.size() +
-//                (orderedEntries.getEntries().size() != orderedEntries.size() ? " dublerede=" + (orderedEntries.getEntries().size() - orderedEntries.size()) : "") +
-//                "");
-//
-//        verifyValuesIsEqualsToStandardProperties(orderedEntries);
-//    }
-//
+
+    @Test
+    public void test3Entries() {
+        testUtil.writeFile("test",
+                "0=a",
+                "1=b",
+                "2=c");
+
+        orderedEntries.load(testUtil.getFile("test"));
+        OrderedEntryIterator<Object, Object> iterator = orderedEntries.iterator();
+
+        assertTrue(iterator.hasNext());
+        assertEquals("0=a", iterator.lookAhead().getEntry().toString());
+
+        assertEquals("0=a", iterator.next().getEntry().toString());
+        assertEquals("1=b", iterator.lookAhead().getEntry().toString());
+
+        assertTrue(iterator.hasNext());
+        assertEquals("1=b", iterator.next().getEntry().toString());
+        assertEquals("2=c", iterator.lookAhead().getEntry().toString());
+
+        assertEquals("2=c", iterator.next().getEntry().toString());
+        assertNull(iterator.lookAhead());
+        assertFalse(iterator.hasNext());
+
+    }
 
 }

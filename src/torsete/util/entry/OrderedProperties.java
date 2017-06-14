@@ -1,4 +1,4 @@
-package torsete.util;
+package torsete.util.entry;
 
 import java.util.*;
 

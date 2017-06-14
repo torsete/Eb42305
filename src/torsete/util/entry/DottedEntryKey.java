@@ -1,4 +1,4 @@
-package torsete.util;
+package torsete.util.entry;
 
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -14,7 +14,7 @@ class DottedEntryKey<K, V> implements Consumer<OrderedEntry<K, V>> {
     private String[] previousSplitKey;
 
     public DottedEntryKey() {
-
+        int c = 0;
 //        this.orderedEntries = orderedEntries;
     }
 

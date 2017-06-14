@@ -1,8 +1,9 @@
-package torsete.util;
+package torsete.util.entry;
 
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
+import torsete.util.TestUtil;
 
 import java.io.IOException;
 import java.util.Enumeration;

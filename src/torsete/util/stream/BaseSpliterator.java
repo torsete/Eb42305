@@ -1,4 +1,4 @@
-package torsete.util;
+package torsete.util.stream;
 
 import java.util.Spliterators;
 import java.util.function.Consumer;
@@ -27,8 +27,9 @@ public class BaseSpliterator<T> extends Spliterators.AbstractSpliterator<T> {
         });
     }
 
+
     protected BaseSpliterator() {
-        this(1, 2);
+        this(Long.MAX_VALUE, 0);
     }
 
     public BaseSpliterator setNextSupplier(Supplier<T> nextSupplier) {
