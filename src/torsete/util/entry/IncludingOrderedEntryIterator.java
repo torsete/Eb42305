@@ -4,25 +4,24 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 import java.util.function.BiFunction;
-import java.util.function.Consumer;
 import java.util.function.Predicate;
+import java.util.stream.Stream;
 
 
 class IncludingOrderedEntryIterator<K, V> extends OrderedEntryIterator<K, V> {
     private OrderedEntryIteratorStack<K, V> iteratorStack;
     private Predicate<OrderedEntry<K, V>> includePredicate;
-    private BiFunction<V, V, OrderedEntryIterator<K, V>> iteratorFactoryFunction;
-    private Consumer<OrderedEntry<K, V>> handleDotsInKey;
+    private BiFunction<V, V, ReaderOrderedEntryIterator<K, V>> sourceFactoryFunction;
+    private boolean tabsInKeyEnabled;
+    private List<ReaderOrderedEntryIterator<K, V>> toBeClosedIterators;
 
     public IncludingOrderedEntryIterator() {
-        includePredicate = entry -> false; // entry.getKey().toString().toLowerCase().contains("include");
         iteratorStack = new OrderedEntryIteratorStack<>();
-        handleDotsInKey = e -> {
-        };
+        toBeClosedIterators = new ArrayList<>();
     }
 
-    public IncludingOrderedEntryIterator<K, V> setIteratorFactoryFunction(BiFunction<V, V, OrderedEntryIterator<K, V>> iteratorFactoryFunction) {
-        this.iteratorFactoryFunction = iteratorFactoryFunction;
+    public IncludingOrderedEntryIterator<K, V> setSourceFactoryFunction(BiFunction<V, V, ReaderOrderedEntryIterator<K, V>> sourceFactoryFunction) {
+        this.sourceFactoryFunction = sourceFactoryFunction;
         return this;
     }
 
@@ -31,13 +30,32 @@ class IncludingOrderedEntryIterator<K, V> extends OrderedEntryIterator<K, V> {
         return this;
     }
 
-    public IncludingOrderedEntryIterator<K, V> setHandleDotsInKey(Consumer<OrderedEntry<K, V>> handleDotsInKey) {
-        this.handleDotsInKey = handleDotsInKey;
+    public IncludingOrderedEntryIterator<K, V> enableTabsInKey(boolean enabled) {
+        tabsInKeyEnabled = enabled;
         return this;
     }
 
+
+    public void close() {
+        toBeClosedIterators.forEach(i -> i.close());
+    }
+
     public OrderedEntryIterator<K, V> open() {
-        iteratorStack.push(newOrderedEntryIterator(getSource()));
+        return open(getSource());
+    }
+
+    public OrderedEntryIterator<K, V> open(V source) {
+        ReaderOrderedEntryIterator<K, V> kvReaderOrderedEntryIterator = newOrderedEntryIterator(source);
+        final V newSource = kvReaderOrderedEntryIterator.getSource();
+        Optional<V> any = iteratorStack.stream()
+                .map(entryReader -> entryReader.getSource())
+                .filter(s -> newSource != null && s != null && s.equals(newSource))
+                .findAny();
+        if (any.isPresent()) {
+            throw new IllegalArgumentException(newSource + " is self referencing");
+        }
+
+        iteratorStack.push(kvReaderOrderedEntryIterator);
         super.open();
         return this;
     }
@@ -46,6 +64,7 @@ class IncludingOrderedEntryIterator<K, V> extends OrderedEntryIterator<K, V> {
     protected OrderedEntry<K, V> readEntry() {
         OrderedEntry<K, V> entry = iteratorStack.top().readEntry();
         while (entry == null) {
+            toBeClosedIterators.add(iteratorStack.top());
             iteratorStack.pop();
             if (iteratorStack.empty()) {
                 return null;
@@ -54,23 +73,25 @@ class IncludingOrderedEntryIterator<K, V> extends OrderedEntryIterator<K, V> {
             }
         }
         if (includePredicate.test(entry)) {
-            iteratorStack.push(newOrderedEntryIterator(entry.getValue()));
-            return readEntry();
+            open(entry.getValue());
+            return iteratorStack.top().nextEntry;
         }
-        handleDotsInKey.accept(entry);
         return entry;
     }
 
-    private OrderedEntryIterator<K, V> newOrderedEntryIterator(V source) {
+    private ReaderOrderedEntryIterator<K, V> newOrderedEntryIterator(V source) {
+        ReaderOrderedEntryIterator<K, V> iterator;
         if (iteratorStack.empty()) {
-            return iteratorFactoryFunction.apply(null, source);
+            iterator = sourceFactoryFunction.apply(null, source);
+        } else {
+            iterator = sourceFactoryFunction.apply(iteratorStack.top().getSource(), source);
         }
-        return iteratorFactoryFunction.apply(iteratorStack.top().getSource(), source);
+        return (ReaderOrderedEntryIterator) iterator.enableTabsInKey(tabsInKeyEnabled).setEntryConsumers(entryConsumers);
 
     }
 
     class OrderedEntryIteratorStack<K, V> {
-        private List<OrderedEntryIterator<K, V>> iterators;
+        private List<ReaderOrderedEntryIterator<K, V>> iterators;
 
         public OrderedEntryIteratorStack() {
             iterators = new ArrayList<>();
@@ -79,30 +100,27 @@ class IncludingOrderedEntryIterator<K, V> extends OrderedEntryIterator<K, V> {
         /**
          * Sustains no source duplicates in stack
          */
-        public void push(OrderedEntryIterator<K, V> iterator) {
-            Optional<V> any = iterators.stream()
-                    .map(entryReader -> entryReader.getSource())
-                    .filter(source -> source.equals(iterator.getSource()))
-                    .findAny();
-            if (any.isPresent()) {
-                throw new IllegalArgumentException(iterator.getSource() + " is self referencing");
-            }
+        public void push(ReaderOrderedEntryIterator<K, V> iterator) {
             iterators.add(iterator);
         }
 
-        public OrderedEntryIterator<K, V> pop() {
+        public ReaderOrderedEntryIterator<K, V> pop() {
             int topIndex = iterators.size() - 1;
-            OrderedEntryIterator iterator = iterators.get(topIndex);
+            ReaderOrderedEntryIterator iterator = iterators.get(topIndex);
             iterators.remove(topIndex);
             return iterator;
         }
 
-        public OrderedEntryIterator<K, V> top() {
+        public ReaderOrderedEntryIterator<K, V> top() {
             return iterators.get(iterators.size() - 1);
         }
 
         public boolean empty() {
             return iterators.size() == 0;
+        }
+
+        public Stream<ReaderOrderedEntryIterator<K, V>> stream() {
+            return iterators.stream();
         }
 
     }

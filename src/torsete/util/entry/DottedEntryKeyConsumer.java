@@ -9,11 +9,11 @@ import java.util.stream.Collectors;
 /**
  * Created by Torsten on 28.05.2017.
  */
-class DottedEntryKey<K, V> implements Consumer<OrderedEntry<K, V>> {
-    //    private OrderedEntries orderedEntries;
+class DottedEntryKeyConsumer<K, V> implements Consumer<OrderedEntry<K, V>> {
+    //    private Entries orderedEntries;
     private String[] previousSplitKey;
 
-    public DottedEntryKey() {
+    public DottedEntryKeyConsumer() {
         int c = 0;
 //        this.orderedEntries = orderedEntries;
     }

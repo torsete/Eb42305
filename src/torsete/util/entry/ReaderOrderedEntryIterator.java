@@ -1,9 +1,11 @@
 package torsete.util.entry;
 
-import java.io.*;
+import java.io.BufferedReader;
+import java.io.IOException;
+import java.io.Reader;
+import java.io.StringReader;
 import java.util.Map;
 import java.util.Properties;
-import java.util.function.Consumer;
 
 /**
  * Fetches input from a Reader.
@@ -21,25 +23,7 @@ public class ReaderOrderedEntryIterator<K, V> extends OrderedEntryIterator<K, V>
     /**
      * If true tab chars to the left of an entry key is replaced by dots
      */
-    private boolean tabsInKeyEnabled;
-
-    private OrderedEntry<K, V> nextEntry;
-    private Consumer<OrderedEntry<K, V>> handleDotsInKey;
-
-
-    public ReaderOrderedEntryIterator() {
-        handleDotsInKey = e -> {
-        };
-    }
-
-    public ReaderOrderedEntryIterator<K, V> setFile(File file) {
-        try {
-            setSource((V) file.getAbsolutePath());
-            return setReader(new FileReader(file));
-        } catch (FileNotFoundException e) {
-            throw new RuntimeException(e);
-        }
-    }
+    protected boolean tabsInKeyEnabled;
 
     public ReaderOrderedEntryIterator<K, V> setReader(Reader reader) {
         this.bufferedReader = new BufferedReader(reader);
@@ -47,21 +31,12 @@ public class ReaderOrderedEntryIterator<K, V> extends OrderedEntryIterator<K, V>
     }
 
 
-    public ReaderOrderedEntryIterator<K, V> setHandleDotsInKey(Consumer<OrderedEntry<K, V>> handleDotsInKey) {
-        this.handleDotsInKey = handleDotsInKey;
-        return this;
-    }
-
     public ReaderOrderedEntryIterator<K, V> enableTabsInKey(boolean enabled) {
         tabsInKeyEnabled = enabled;
         return this;
     }
 
 
-    public ReaderOrderedEntryIterator<K, V> open() {
-        super.open();
-        return this;
-    }
 
     @Override
     public void close() {
@@ -88,7 +63,6 @@ public class ReaderOrderedEntryIterator<K, V> extends OrderedEntryIterator<K, V>
             entry = readEntry(line);
         } while (entry == null);
         OrderedEntry orderedEntry = new OrderedEntry(entry).setLineNumber(nextLineNumber - 1).setSource(getSource());
-        handleDotsInKey.accept(orderedEntry);
         return orderedEntry;
     }
 
