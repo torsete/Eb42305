@@ -71,7 +71,7 @@ public class EntriesTest {
         OrderedEntry<Object, Object> firstEntry = entries.linked(testUtil.getFileReader("test"));
 
 
-        String orderedAsString = entries.getOrderedAsString(firstEntry);
+        String orderedAsString = entries.getEntriesAsString(firstEntry);
         System.out.println(orderedAsString);
 
 
@@ -170,7 +170,7 @@ public class EntriesTest {
                 "key2=2",
                 "key3=3");
 
-        String orderedAsString = entries.getOrderedAsString(firstEntry);
+        String orderedAsString = entries.getEntriesAsString(firstEntry);
         System.out.println(orderedAsString);
 
     }
@@ -418,7 +418,7 @@ public class EntriesTest {
                 "root2.key4=10",
                 "root2.key4..key5=11");
 
-        String orderedAsString = entries.getOrderedAsString(firstEntry);
+        String orderedAsString = entries.getEntriesAsString(firstEntry);
         System.out.println(orderedAsString);
 
     }

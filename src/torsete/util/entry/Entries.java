@@ -22,7 +22,7 @@ public class Entries<K, V> {
 
     public Entries clear() {
         entryConsumers = new ArrayList<>();
-        enableTabsInKey(true);
+        isTabsInKeyEnabled = true;
         includePredicate = entry -> entry.getKey().toString().toLowerCase().contains("include");
         return this;
     }
@@ -63,11 +63,11 @@ public class Entries<K, V> {
 
 
     public OrderedEntry<K, V> linked(Reader reader) {
-        return runLinkedIterator(iterator(reader));
+        return createLinkedList(iterator(reader));
     }
 
     public OrderedEntry<K, V> linked(File file) {
-        return runLinkedIterator(iterator(file));
+        return createLinkedList(iterator(file));
     }
 
     public OrderedEntry<K, V> linked(String string) {
@@ -84,7 +84,7 @@ public class Entries<K, V> {
     }
 
     public OrderedEntryIterator<K, V> iterator(File file) {
-        return newIncludingFileOrderedEntryIterator(file).open();
+        return newIncludingOrderedEntryIterator(file).open();
     }
 
     public OrderedEntryIterator<K, V> iterator(String string) {
@@ -121,13 +121,13 @@ public class Entries<K, V> {
     }
 
 
-    public String getOrderedAsString(OrderedEntry<K, V> firstEntry) {
+    public String getEntriesAsString(OrderedEntry<K, V> firstEntry) {
         StringBuilder sb = new StringBuilder();
-        runLinkedIterator(iterator(firstEntry).addEntryConsumer((oe -> sb.append(oe.toString() + "\n"))));
+        iterator(firstEntry).forEachRemaining(oe -> sb.append(oe.toString() + "\n"));
         return sb.toString();
     }
 
-    private OrderedEntry<K, V> runLinkedIterator(OrderedEntryIterator<K, V> iterator) {
+    private OrderedEntry<K, V> createLinkedList(OrderedEntryIterator<K, V> iterator) {
         OrderedEntry<K, V> firstEntry = iterator.getFirstEntry();
         iterator.forEachRemaining(oe -> oe.setSuccessor(iterator.lookAhead()));
         iterator.close();
@@ -148,14 +148,14 @@ public class Entries<K, V> {
         return stream;
     }
 
-    private OrderedEntryIterator<K, V> newIncludingFileOrderedEntryIterator(File file) {
-        BiFunction<V, V, ReaderOrderedEntryIterator<K, V>> sourceFactoryFunction = (parentSource, source) -> {
+    private OrderedEntryIterator<K, V> newIncludingOrderedEntryIterator(File file) {
+        BiFunction<V, V, OrderedEntryIterator<K, V>> sourceFactoryFunction = (parentSource, source) -> {
             String sourceString = parentSource == null ?
                     file.getAbsolutePath() :
                     new File(parentSource.toString()).getParent() + File.separator + source;
             File sourceFile = new File(sourceString);
             try {
-                return (ReaderOrderedEntryIterator) new ReaderOrderedEntryIterator<K, V>()
+                return new ReaderOrderedEntryIterator<K, V>()
                         .setReader(new FileReader(sourceFile))
                         .setSource((V) sourceFile.getAbsolutePath());
             } catch (FileNotFoundException e) {
@@ -166,7 +166,7 @@ public class Entries<K, V> {
     }
 
     private OrderedEntryIterator<K, V> newReaderOrderedEntryIterator(Reader reader) {
-        BiFunction<V, V, ReaderOrderedEntryIterator<K, V>> sourceFactoryFunction = (parentSource, source) -> {
+        BiFunction<V, V, OrderedEntryIterator<K, V>> sourceFactoryFunction = (parentSource, source) -> {
             if (parentSource != null) {
                 throw new UnsupportedOperationException("include is not supported");
             }
@@ -175,7 +175,7 @@ public class Entries<K, V> {
         return newIncludingOrderedEntryIterator(sourceFactoryFunction);
     }
 
-    private OrderedEntryIterator<K, V> newIncludingOrderedEntryIterator(BiFunction<V, V, ReaderOrderedEntryIterator<K, V>> sourceFactoryFunction) {
+    private OrderedEntryIterator<K, V> newIncludingOrderedEntryIterator(BiFunction<V, V, OrderedEntryIterator<K, V>> sourceFactoryFunction) {
         OrderedEntryIterator<K, V> iterator = new IncludingOrderedEntryIterator<K, V>()
                 .enableTabsInKey(isTabsInKeyEnabled)
                 .setSourceFactoryFunction(sourceFactoryFunction)
