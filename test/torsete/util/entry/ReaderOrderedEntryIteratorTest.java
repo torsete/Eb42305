@@ -163,6 +163,10 @@ public class ReaderOrderedEntryIteratorTest {
             throw new RuntimeException(e);
         }
 
+
+        properties.entrySet().stream().forEach(es -> System.out.println(">>>" + es + "<<<"));
+
+
         OrderedEntryIterator<String, String> iterator = new ReaderOrderedEntryIterator<String, String>()
                 .setReader(testUtil.getFileReader(filename))
                 .open();
@@ -170,6 +174,7 @@ public class ReaderOrderedEntryIteratorTest {
         int count = 0;
         while (iterator.hasNext()) {
             OrderedEntry<String, String> next = iterator.next();
+            System.out.println(">>>" + next + "<<<");
             String key = next.getKey().trim();
             String expectedValue = properties.getProperty(key);
             assertEquals(key + ":", expectedValue, next.getValue());

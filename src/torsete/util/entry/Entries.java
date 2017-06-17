@@ -1,10 +1,7 @@
 package torsete.util.entry;
 
 import java.io.*;
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 import java.util.function.BiFunction;
 import java.util.function.Consumer;
 import java.util.function.Predicate;
@@ -16,14 +13,21 @@ public class Entries<K, V> {
     private List<Consumer<OrderedEntry<K, V>>> entryConsumers;
     private boolean isTabsInKeyEnabled;
 
+    private Reader reader;
+    private File file;
+    private OrderedEntry<K, V> firstEntry;
+
     public Entries() {
         clear();
     }
 
     public Entries clear() {
+        reader = null;
+        file = null;
+        firstEntry = null;
         entryConsumers = new ArrayList<>();
-        isTabsInKeyEnabled = true;
-        includePredicate = entry -> entry.getKey().toString().toLowerCase().contains("include");
+        isTabsInKeyEnabled = false;
+        includePredicate = entry -> false;
         return this;
     }
 
@@ -38,117 +42,88 @@ public class Entries<K, V> {
         return this;
     }
 
-
     public Entries<K, V> setIncludePredicate(Predicate<OrderedEntry<K, V>> includePredicate) {
         this.includePredicate = includePredicate;
         return this;
     }
 
-
-    public Map<K, V> hashMap(Reader reader) {
-        return runHashMap(() -> linked(reader));
+    public Entries<K, V> setSource(Reader reader) {
+        this.reader = reader;
+        return this;
     }
 
-    public Map<K, V> hashMap(File file) {
-        return runHashMap(() -> linked(file));
+    public Entries<K, V> setSource(File file) throws FileNotFoundException {
+        this.file = file;
+        this.reader = new FileReader(file);
+        return this;
     }
 
-    public Map<K, V> hashMap(String string) {
-        return runHashMap(() -> linked(string));
+    public Entries<K, V> setSource(String string) {
+        this.reader = new StringReader(string);
+        return this;
     }
 
-    public Map<K, V> hashMap(InputStream inputStream) {
-        return runHashMap(() -> linked(inputStream));
-    }
-
-
-    public OrderedEntry<K, V> linked(Reader reader) {
-        return createLinkedList(iterator(reader));
-    }
-
-    public OrderedEntry<K, V> linked(File file) {
-        return createLinkedList(iterator(file));
-    }
-
-    public OrderedEntry<K, V> linked(String string) {
-        return linked(new StringReader(string));
-    }
-
-    public OrderedEntry<K, V> linked(InputStream inputStream) {
-        return linked(new InputStreamReader(inputStream));
+    public Entries<K, V> setSource(InputStream inputStream) {
+        this.reader = new InputStreamReader(inputStream);
+        return this;
     }
 
 
-    public OrderedEntryIterator<K, V> iterator(Reader reader) {
-        return newReaderOrderedEntryIterator(reader).open();
-    }
-
-    public OrderedEntryIterator<K, V> iterator(File file) {
-        return newIncludingOrderedEntryIterator(file).open();
-    }
-
-    public OrderedEntryIterator<K, V> iterator(String string) {
-        return iterator(new StringReader(string));
-    }
-
-    public OrderedEntryIterator<K, V> iterator(InputStream inputStream) {
-        return iterator(new InputStreamReader(inputStream));
-    }
-
-    public OrderedEntryIterator<K, V> iterator(OrderedEntry<K, V> firstEntry) {
-        return new LinkedOrderedEntryIterator(firstEntry).open();
-    }
-
-
-    public Stream<OrderedEntry<K, V>> stream(Reader reader) {
-        return newStream(iterator(reader));
-    }
-
-    public Stream<OrderedEntry<K, V>> stream(File file) {
-        return newStream(iterator(file));
-    }
-
-    public Stream<OrderedEntry<K, V>> stream(String string) {
-        return newStream(iterator(string));
-    }
-
-    public Stream<OrderedEntry<K, V>> stream(InputStream inputStream) {
-        return newStream(iterator(inputStream));
-    }
-
-    public Stream<OrderedEntry<K, V>> stream(OrderedEntry<K, V> firstEntry) {
-        return newStream(iterator(firstEntry));
-    }
-
-
-    public String getEntriesAsString(OrderedEntry<K, V> firstEntry) {
-        StringBuilder sb = new StringBuilder();
-        iterator(firstEntry).forEachRemaining(oe -> sb.append(oe.toString() + "\n"));
-        return sb.toString();
-    }
-
-    private OrderedEntry<K, V> createLinkedList(OrderedEntryIterator<K, V> iterator) {
-        OrderedEntry<K, V> firstEntry = iterator.getFirstEntry();
-        iterator.forEachRemaining(oe -> oe.setSuccessor(iterator.lookAhead()));
-        iterator.close();
-        return firstEntry;
-    }
-
-    private Map<K, V> runHashMap(Runnable loadRunnable) {
-        Map<K, V> map = new HashMap<>();
-        Consumer<OrderedEntry<K, V>> entryConsumer = oe -> map.put(oe.getKey(), oe.getValue());
-        addEntryConsumer(entryConsumer);
-        loadRunnable.run();
-        return map;
-    }
-
-    private Stream<OrderedEntry<K, V>> newStream(OrderedEntryIterator<K, V> iterator) {
+    public Stream<OrderedEntry<K, V>> stream() {
+        OrderedEntryIterator<K, V> iterator = iterator();
         Iterable<OrderedEntry<K, V>> iterable = () -> iterator;
         Stream<OrderedEntry<K, V>> stream = StreamSupport.stream(iterable.spliterator(), false).onClose(() -> iterator.close());
         return stream;
     }
 
-    private OrderedEntryIterator<K, V> newIncludingOrderedEntryIterator(File file) {
+    public Map<K, V> hashMap() {
+        Map<K, V> map = new HashMap<>();
+        stream().forEach(oe -> map.put(oe.getKey(), oe.getValue()));
+        return map;
+    }
+
+    public Properties properties() {
+        Properties properties = new Properties();
+        stream().forEach(oe -> properties.put(oe.getKey(), oe.getValue()));
+        return properties;
+    }
+
+    public Entries<K, V> load() {
+        OrderedEntryIterator<K, V> iterator = iterator();
+        iterator.forEachRemaining(oe -> oe.setSuccessor(iterator.lookAhead()));
+        iterator.close();
+        return this;
+    }
+
+    public OrderedEntryIterator<K, V> iterator() {
+        OrderedEntryIterator<K, V> iterator = null;
+        if (firstEntry != null) {
+            iterator = newLinkedOrderedEntryIterator();
+        } else if (file != null) {
+            iterator = newFileterator();
+        } else if (reader != null) {
+            iterator = newReaderIterator();
+        } else {
+            throw new RuntimeException("Source not defined");
+        }
+        iterator.open();
+        firstEntry = iterator.getFirstEntry();
+        return iterator;
+    }
+
+    public String getEntriesAsString() {
+        StringBuilder sb = new StringBuilder();
+        OrderedEntryIterator<K, V> iterator = iterator();
+        iterator.forEachRemaining(oe -> sb.append(oe.toString() + "\n"));
+        return sb.toString();
+    }
+
+
+    public OrderedEntry<K, V> getFirstEntry() {
+        return firstEntry;
+    }
+
+    private OrderedEntryIterator<K, V> newFileterator() {
         BiFunction<V, V, OrderedEntryIterator<K, V>> sourceFactoryFunction = (parentSource, source) -> {
             String sourceString = parentSource == null ?
                     file.getAbsolutePath() :
@@ -162,26 +137,30 @@ public class Entries<K, V> {
                 throw new RuntimeException(e);
             }
         };
-        return newIncludingOrderedEntryIterator(sourceFactoryFunction);
+        return newIncludingIterator(sourceFactoryFunction);
     }
 
-    private OrderedEntryIterator<K, V> newReaderOrderedEntryIterator(Reader reader) {
+    private OrderedEntryIterator<K, V> newReaderIterator() {
         BiFunction<V, V, OrderedEntryIterator<K, V>> sourceFactoryFunction = (parentSource, source) -> {
             if (parentSource != null) {
                 throw new UnsupportedOperationException("include is not supported");
             }
             return new ReaderOrderedEntryIterator<K, V>().setReader(reader);
         };
-        return newIncludingOrderedEntryIterator(sourceFactoryFunction);
+        return newIncludingIterator(sourceFactoryFunction);
     }
 
-    private OrderedEntryIterator<K, V> newIncludingOrderedEntryIterator(BiFunction<V, V, OrderedEntryIterator<K, V>> sourceFactoryFunction) {
+    private OrderedEntryIterator<K, V> newIncludingIterator(BiFunction<V, V, OrderedEntryIterator<K, V>> sourceFactoryFunction) {
         OrderedEntryIterator<K, V> iterator = new IncludingOrderedEntryIterator<K, V>()
                 .enableTabsInKey(isTabsInKeyEnabled)
                 .setSourceFactoryFunction(sourceFactoryFunction)
                 .setIncludePredicate(includePredicate);
         entryConsumers.forEach(ec -> iterator.addEntryConsumer(ec));
         return iterator;
+    }
+
+    private OrderedEntryIterator<K, V> newLinkedOrderedEntryIterator() {
+        return new LinkedOrderedEntryIterator(firstEntry);
     }
 }
 

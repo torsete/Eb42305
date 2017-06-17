@@ -4,6 +4,7 @@ import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.Reader;
 import java.io.StringReader;
+import java.util.HashMap;
 import java.util.Map;
 import java.util.Properties;
 
@@ -30,13 +31,10 @@ public class ReaderOrderedEntryIterator<K, V> extends OrderedEntryIterator<K, V>
         return this;
     }
 
-
     public ReaderOrderedEntryIterator<K, V> enableTabsInKey(boolean enabled) {
         tabsInKeyEnabled = enabled;
         return this;
     }
-
-
 
     @Override
     public void close() {
@@ -47,89 +45,96 @@ public class ReaderOrderedEntryIterator<K, V> extends OrderedEntryIterator<K, V>
         }
     }
 
-    /**
-     * Fetches next entry
-     */
+    @Override
     protected OrderedEntry<K, V> readEntry() {
-        Map.Entry<K, V> entry = null;
-        do {
-            String line = readLine();
-            if (line == null) {
-                return null;
+        String line = readLine();
+        while (line != null) {
+            String collectTabsBeforeEntryKey = collectTabsBeforeEntryKey(line);
+            String collectedLine = "";
+            while (line != null) {
+                nextLineNumber++;
+                line = trimLeft(line);
+                if (line.endsWith("\\") && !line.endsWith("\\\\")) {
+                    collectedLine += line.substring(0, line.length() - 1);
+                    line = readLine();
+                } else {
+                    collectedLine += line;
+                    line = null;
+                }
             }
-            if (tabsInKeyEnabled) {
-                line = replaceTabsBeforeEntryKey(line);
+            Map.Entry<K, V> entry = grabEntry(collectedLine, tabsInKeyEnabled ? collectTabsBeforeEntryKey : null);
+            if (entry != null) {
+                return new OrderedEntry(entry).setLineNumber(nextLineNumber - 1).setSource(getSource());
             }
-            entry = readEntry(line);
-        } while (entry == null);
-        OrderedEntry orderedEntry = new OrderedEntry(entry).setLineNumber(nextLineNumber - 1).setSource(getSource());
-        return orderedEntry;
+            line = readLine();
+        }
+        return null;
     }
 
-    private String replaceTabsBeforeEntryKey(String line) {
+
+    private String trimLeft(String string) {
+        int pos = string.length();
+        for (int i = 0; i < string.length(); i++) {
+            char c = string.charAt(i);
+            if (c != ' ' && c != '\t') {
+                pos = i;
+                break;
+            }
+        }
+        return string.substring(pos);
+    }
+
+    private String readLine() {
+        try {
+            return bufferedReader.readLine();
+        } catch (IOException e) {
+            throw new RuntimeException(e);
+        }
+    }
+
+    private String collectTabsBeforeEntryKey(String line) {
         StringBuilder sb = new StringBuilder();
         for (int i = 0; i < line.length(); i++) {
             char c = line.charAt(i);
             if (c == '\t') {
-                sb.append('.');
+                sb.append(c);
             } else {
-                sb.append(line.substring(i));
-                break;
+                if (c != ' ') {
+                    break;
+                }
             }
         }
         return sb.toString();
+
     }
 
     /**
-     * Parse a string which may contain en entry
+     * Ectracts an entry from a string which may contain en entry
      *
+     * @param keyPrefix If not null this value will be appended as key prefix
      * @return Null if the input line does not contain a full entry
      */
-    private Map.Entry readEntry(String string) {
-        Properties p = new Properties();
+    private Map.Entry<K, V> grabEntry(String string, String keyPrefix) {
+        Properties properties = new Properties();  // To be used as parser
         StringReader stringReader = new StringReader(string);
         try {
-            p.load(stringReader);
+            properties.load(stringReader);
         } catch (IOException e) {
             throw new RuntimeException(e);
         }
-        return p.size() == 0 ? null : p.entrySet().iterator().next();
-    }
-
-    /**
-     * Attempts to collect an ntry
-     *
-     * @return Not null. May have the length 0.
-     */
-    private String readLine() {
-        String line = null;
-
-        try {
-            line = bufferedReader.readLine();
-            nextLineNumber++;
-            while (isLineToBeContinued(line)) {
-                String additionalLine = bufferedReader.readLine();
-                nextLineNumber++;
-                if (additionalLine == null) {
-                    return line;
-                }
-                additionalLine = additionalLine.trim();
-                line = line.substring(0, line.length() - 1) + additionalLine;
-            }
-        } catch (IOException e) {
-            throw new RuntimeException(e);
+        if (properties.size() == 0) {
+            return null;
         }
-        return line;
-    }
+        Map.Entry<Object, Object> entry = properties.entrySet().iterator().next();
+        K key = (K) entry.getKey();
+        V value = (V) entry.getValue();
 
-    private boolean isLineToBeContinued(String line) {
-        if (line == null) {
-            return false;
+        Map<K, V> map = new HashMap<>();
+        if (keyPrefix != null) {
+            key = (K) (keyPrefix + key);
         }
-        if (line.length() == 0 || line.charAt(line.length() - 1) != '\\') {
-            return false;
-        }
-        return line.charAt(line.length() - 2) != '\\';
+        map.put(key, value);
+        return map.entrySet().iterator().next();
     }
 
 }

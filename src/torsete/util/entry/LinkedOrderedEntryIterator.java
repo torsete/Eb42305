@@ -1,7 +1,7 @@
 package torsete.util.entry;
 
 /**
- * Fetches input from a linked list of {@link OrderedEntry<K, V>}.
+ * Fetches input from a orderedEntry list of {@link OrderedEntry<K, V>}.
  */
 public class LinkedOrderedEntryIterator<K, V> extends OrderedEntryIterator<K, V> {
     private OrderedEntry<K, V> currentEntry;

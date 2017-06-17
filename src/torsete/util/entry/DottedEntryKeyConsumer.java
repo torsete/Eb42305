@@ -10,12 +10,16 @@ import java.util.stream.Collectors;
  * Created by Torsten on 28.05.2017.
  */
 class DottedEntryKeyConsumer<K, V> implements Consumer<OrderedEntry<K, V>> {
-    //    private Entries orderedEntries;
     private String[] previousSplitKey;
 
+    private char[] splitChars;
+
     public DottedEntryKeyConsumer() {
-        int c = 0;
-//        this.orderedEntries = orderedEntries;
+        this(' ', '.', '\t');
+    }
+
+    public DottedEntryKeyConsumer(char... splitChars) {
+        this.splitChars = splitChars;
     }
 
     @Override
@@ -48,7 +52,7 @@ class DottedEntryKeyConsumer<K, V> implements Consumer<OrderedEntry<K, V>> {
         StringBuilder sb = new StringBuilder();
         for (int i = 0; i < key.length(); i++) {
             char c = key.charAt(i);
-            if (c == '.' || c == ' ') {
+            if (isSplitChar(c)) {
                 strings.add(sb.toString());
                 sb = new StringBuilder();
             } else {
@@ -58,5 +62,15 @@ class DottedEntryKeyConsumer<K, V> implements Consumer<OrderedEntry<K, V>> {
 
         strings.add(sb.toString());
         return strings;
+    }
+
+    private boolean isSplitChar(char c) {
+        for (char sc : splitChars) {
+            if (c == sc) {
+                return true;
+            }
+
+        }
+        return false;
     }
 }
