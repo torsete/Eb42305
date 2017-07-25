@@ -8,15 +8,11 @@ import torsete.util.TestUtil;
 import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.StringReader;
-import java.util.HashMap;
-import java.util.Iterator;
-import java.util.Map;
-import java.util.Properties;
+import java.util.*;
 import java.util.function.Consumer;
 import java.util.stream.Stream;
 
 import static junit.framework.TestCase.*;
-import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 
 /**
@@ -158,7 +154,116 @@ public class EntriesTest {
     }
 
     @Test
+    public void testAdd() throws IOException {
+        Entries<String, String> entries = new Entries<>();
+        entries.add("k1", "v1");
+        assertNotNull(entries.getFirstEntry());
+        assertEquals(entries.getFirstEntry(), entries.getLastEntry());
+        assertNull(entries.getLastEntry().getSuccessor());
+
+        entries.add("k2", "v2");
+        assertEquals(entries.getFirstEntry().getSuccessor(), entries.getLastEntry());
+        assertNull(entries.getLastEntry().getSuccessor());
+
+        entries.add("k3", "v3");
+        assertEquals(entries.getFirstEntry().getSuccessor().getSuccessor(), entries.getLastEntry());
+        assertNull(entries.getLastEntry().getSuccessor());
+    }
+
+    @Test
+    public void testAddAndLoad() throws IOException {
+
+        testUtil.writeFile("testA",
+                "a1=v1",
+                "a2=v2",
+                "a3=v3",
+                "");
+        testUtil.writeFile("testB",
+                "b1=v1",
+                "b2=v2",
+                "b3=v3",
+                "");
+        Entries<String, String> entries = new Entries<>();
+        entries.add("k1", "v1");
+        entries.setSource(testUtil.getFile("testA")).load();
+        entries.add("k2", "v2");
+        entries.add("k3", "v3");
+        entries.setSource(testUtil.getFile("testB")).load();
+
+        OrderedEntry<String, String> entry = entries.getFirstEntry();
+        assertEquals("k1=v1", entry.getEntry().toString());
+        entry = entry.getSuccessor();
+        assertEquals("a1=v1", entry.getEntry().toString());
+        entry = entry.getSuccessor();
+        assertEquals("a2=v2", entry.getEntry().toString());
+        entry = entry.getSuccessor();
+        assertEquals("a3=v3", entry.getEntry().toString());
+        entry = entry.getSuccessor();
+        assertEquals("k2=v2", entry.getEntry().toString());
+        entry = entry.getSuccessor();
+        assertEquals("k3=v3", entry.getEntry().toString());
+        entry = entry.getSuccessor();
+        assertEquals("b1=v1", entry.getEntry().toString());
+        entry = entry.getSuccessor();
+        assertEquals("b2=v2", entry.getEntry().toString());
+        entry = entry.getSuccessor();
+        assertEquals("b3=v3", entry.getEntry().toString());
+        entry = entry.getSuccessor();
+        assertNull(entry);
+
+        HashMap<String, List<String>> map = entries.createMap();
+        assertEquals(9, map.size());
+
+    }
+
+    @Test
     public void testLoad() throws IOException {
+        testUtil.writeFile("testA",
+                "k1=v1",
+                "k2=v2",
+                "k3=v3",
+                "");
+        testUtil.writeFile("testB",
+                "bk1=v1",
+                "bk2=v2",
+                "k3=v4",
+                "");
+
+        entries.setSource(testUtil.getFile("testA")).load();
+        assertEquals("k1=v1", entries.getFirstEntry().getEntry().toString());
+        assertEquals("k2=v2", entries.getFirstEntry().getSuccessor().getEntry().toString());
+        assertEquals("k3=v3", entries.getFirstEntry().getSuccessor().getSuccessor().getEntry().toString());
+        assertEquals(entries.getFirstEntry().getSuccessor().getSuccessor(), entries.getLastEntry());
+        assertNull(entries.getLastEntry().getSuccessor());
+
+        OrderedEntry<Object, Object> lastAEntry = entries.getLastEntry();
+
+        entries.setSource(testUtil.getFile("testB")).load();
+        String s = entries.toString();
+        assertEquals("bk1=v1", lastAEntry.getSuccessor().getEntry().toString());
+        assertEquals("bk2=v2", lastAEntry.getSuccessor().getSuccessor().getEntry().toString());
+        assertEquals("k3=v4", lastAEntry.getSuccessor().getSuccessor().getSuccessor().getEntry().toString());
+        assertNull(entries.getLastEntry().getSuccessor());
+
+        assertEquals("k1=v1", entries.getFirstEntry().getEntry().toString());
+        assertEquals("k2=v2", entries.getFirstEntry().getSuccessor().getEntry().toString());
+        assertEquals("k3=v3", entries.getFirstEntry().getSuccessor().getSuccessor().getEntry().toString());
+
+        HashMap<Object, List<Object>> map = entries.createMap();
+        assertEquals(5, map.size());
+        List<Object> values = map.get("k3");
+        assertEquals(2, values.size());
+        assertEquals("v3", values.get(0));
+        assertEquals("v4", values.get(1));
+        values = map.get("k1");
+        assertEquals(1, values.size());
+        assertEquals("v1", values.get(0));
+
+
+    }
+
+    @Test
+    public void testLoad2() throws IOException {
         testUtil.writeFile("test",
                 "key1=a",
                 "",
@@ -797,12 +902,12 @@ public class EntriesTest {
                 "........c c");
         entries.clear();
         entries.setSource(testUtil.getInputStream("test"));
-        OrderedEntryIterator<Object, Object> iterator = entries.addEntryConsumer(new DottedEntryKeyConsumer<>()).iterator();
-        iterator.forEachRemaining(e -> {
-            System.out.println("-------------------");
-            System.out.println("" + e);
-            System.out.println("-------------------");
-        });
+//        OrderedEntryIterator<Object, Object> iterator = entries.addEntryConsumer(new DottedEntryKeyConsumer<>()).sourceIterator();
+//        iterator.forEachRemaining(e -> {
+//            System.out.println("-------------------");
+//            System.out.println("" + e);
+//            System.out.println("-------------------");
+//        });
         entries.clear();
         entries.setSource(testUtil.getInputStream("test"));
         Stream<OrderedEntry<Object, Object>> stream = entries.addEntryConsumer(new DottedEntryKeyConsumer<>()).stream();
@@ -824,30 +929,30 @@ public class EntriesTest {
 
     }
 
-    @Test
-    public void test3Entries() throws FileNotFoundException {
-        testUtil.writeFile("test",
-                "0=a",
-                "1=b",
-                "2=c");
-
-        OrderedEntry<Object, Object> firstEntry = entries.setSource(testUtil.getFile("test")).load().getFirstEntry();
-        OrderedEntryIterator<Object, Object> iterator = entries.iterator();
-
-        assertTrue(iterator.hasNext());
-        assertEquals("0=a", iterator.lookAhead().getEntry().toString());
-
-        assertEquals("0=a", iterator.next().getEntry().toString());
-        assertEquals("1=b", iterator.lookAhead().getEntry().toString());
-
-        assertTrue(iterator.hasNext());
-        assertEquals("1=b", iterator.next().getEntry().toString());
-        assertEquals("2=c", iterator.lookAhead().getEntry().toString());
-
-        assertEquals("2=c", iterator.next().getEntry().toString());
-        assertNull(iterator.lookAhead());
-        assertFalse(iterator.hasNext());
-
-    }
+//    @Test
+//    public void test3Entries() throws FileNotFoundException {
+//        testUtil.writeFile("test",
+//                "0=a",
+//                "1=b",
+//                "2=c");
+//
+//        OrderedEntry<Object, Object> firstEntry = entries.setSource(testUtil.getFile("test")).load().getFirstEntry();
+//        OrderedEntryIterator<Object, Object> iterator = entries.iterator();
+//
+//        assertTrue(iterator.hasNext());
+//        assertEquals("0=a", iterator.lookAhead().getEntry().toString());
+//
+//        assertEquals("0=a", iterator.next().getEntry().toString());
+//        assertEquals("1=b", iterator.lookAhead().getEntry().toString());
+//
+//        assertTrue(iterator.hasNext());
+//        assertEquals("1=b", iterator.next().getEntry().toString());
+//        assertEquals("2=c", iterator.lookAhead().getEntry().toString());
+//
+//        assertEquals("2=c", iterator.next().getEntry().toString());
+//        assertNull(iterator.lookAhead());
+//        assertFalse(iterator.hasNext());
+//
+//    }
 
 }

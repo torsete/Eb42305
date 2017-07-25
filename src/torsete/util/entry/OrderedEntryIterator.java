@@ -11,6 +11,7 @@ import java.util.function.Consumer;
 public abstract class OrderedEntryIterator<K, V> implements Iterator<OrderedEntry<K, V>> {
 
     protected OrderedEntry<K, V> firstEntry;
+    protected OrderedEntry<K, V> lastEntry;
     protected OrderedEntry<K, V> nextEntry;
     /**
      * Optional identification of source
@@ -29,6 +30,9 @@ public abstract class OrderedEntryIterator<K, V> implements Iterator<OrderedEntr
         OrderedEntry<K, V> entry = nextEntry;
         nextEntry = readEntry();
         entryConsumers.forEach(ec -> ec.accept(entry));
+        if (nextEntry != null) {
+            lastEntry = nextEntry;
+        }
         return entry;
     }
 
@@ -58,6 +62,10 @@ public abstract class OrderedEntryIterator<K, V> implements Iterator<OrderedEntr
 
     public OrderedEntry<K, V> getFirstEntry() {
         return firstEntry;
+    }
+
+    public OrderedEntry<K, V> getLastEntry() {
+        return lastEntry;
     }
 
     public void close() {

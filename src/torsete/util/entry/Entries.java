@@ -16,6 +16,7 @@ public class Entries<K, V> {
     private Reader reader;
     private File file;
     private OrderedEntry<K, V> firstEntry;
+    private OrderedEntry<K, V> lastEntry;
 
     public Entries() {
         clear();
@@ -25,6 +26,7 @@ public class Entries<K, V> {
         reader = null;
         file = null;
         firstEntry = null;
+        lastEntry = null;
         entryConsumers = new ArrayList<>();
         isTabsInKeyEnabled = false;
         includePredicate = entry -> false;
@@ -68,11 +70,24 @@ public class Entries<K, V> {
         return this;
     }
 
+    public HashMap<K, List<V>> createMap() {
+        HashMap<K, List<V>> map = new HashMap<>();
+        OrderedEntryIterator<K, V> iterator = newEntryIterator();
+        while (iterator.hasNext()) {
+            OrderedEntry<K, V> orderedEntry = iterator.next();
+            if (map.get(orderedEntry.getKey()) == null) {
+                map.put(orderedEntry.getKey(), new ArrayList<>());
+            }
+            map.get(orderedEntry.getKey()).add(orderedEntry.getValue());
+        }
+        return map;
+    }
 
     public Stream<OrderedEntry<K, V>> stream() {
-        OrderedEntryIterator<K, V> iterator = iterator();
+        OrderedEntryIterator<K, V> iterator = newEntryIterator();
         Iterable<OrderedEntry<K, V>> iterable = () -> iterator;
         Stream<OrderedEntry<K, V>> stream = StreamSupport.stream(iterable.spliterator(), false).onClose(() -> iterator.close());
+        lastEntry = iterator.getLastEntry();
         return stream;
     }
 
@@ -89,31 +104,28 @@ public class Entries<K, V> {
     }
 
     public Entries<K, V> load() {
-        OrderedEntryIterator<K, V> iterator = iterator();
+        OrderedEntryIterator<K, V> iterator = newSourceIterator();
         iterator.forEachRemaining(oe -> oe.setSuccessor(iterator.lookAhead()));
         iterator.close();
+        lastEntry = iterator.getLastEntry();
         return this;
     }
 
-    public OrderedEntryIterator<K, V> iterator() {
-        OrderedEntryIterator<K, V> iterator = null;
-        if (firstEntry != null) {
-            iterator = newLinkedOrderedEntryIterator();
-        } else if (file != null) {
-            iterator = newFileterator();
-        } else if (reader != null) {
-            iterator = newReaderIterator();
+    public Entries<K, V> add(K key, V value) {
+        OrderedEntry<K, V> orderedEntry = new OrderedEntry<>(key, value);
+        if (firstEntry == null) {
+            firstEntry = orderedEntry;
         } else {
-            throw new RuntimeException("Source not defined");
+            lastEntry.setSuccessor(orderedEntry);
         }
-        iterator.open();
-        firstEntry = iterator.getFirstEntry();
-        return iterator;
+        lastEntry = orderedEntry;
+        return this;
     }
+
 
     public String getEntriesAsString() {
         StringBuilder sb = new StringBuilder();
-        OrderedEntryIterator<K, V> iterator = iterator();
+        OrderedEntryIterator<K, V> iterator = newEntryIterator();
         iterator.forEachRemaining(oe -> sb.append(oe.toString() + "\n"));
         return sb.toString();
     }
@@ -121,6 +133,41 @@ public class Entries<K, V> {
 
     public OrderedEntry<K, V> getFirstEntry() {
         return firstEntry;
+    }
+
+    public OrderedEntry<K, V> getLastEntry() {
+        return lastEntry;
+    }
+
+    private OrderedEntryIterator<K, V> newEntryIterator() {
+        OrderedEntryIterator<K, V> iterator = null;
+        if (firstEntry != null) {
+            iterator = newLinkedOrderedEntryIterator();
+        }
+        if (iterator == null) {
+            return newSourceIterator();
+        }
+        iterator.open();
+        firstEntry = iterator.getFirstEntry();
+        return iterator;
+    }
+
+    private OrderedEntryIterator<K, V> newSourceIterator() {
+        OrderedEntryIterator<K, V> iterator = null;
+        if (file != null) {
+            iterator = newFileterator();
+        } else if (reader != null) {
+            iterator = newReaderIterator();
+        } else {
+            throw new RuntimeException("Source not defined");
+        }
+        iterator.open();
+        if (firstEntry == null) {
+            firstEntry = iterator.getFirstEntry();
+        } else {
+            lastEntry.setSuccessor(iterator.getFirstEntry());
+        }
+        return iterator;
     }
 
     private OrderedEntryIterator<K, V> newFileterator() {

@@ -1,5 +1,6 @@
 package torsete.util.entry;
 
+import java.util.HashMap;
 import java.util.Map;
 import java.util.Properties;
 
@@ -14,6 +15,12 @@ public class OrderedEntry<K, V> {
 
     public OrderedEntry(Map.Entry<K, V> entry) {
         this.entry = entry;
+    }
+
+    public OrderedEntry(K key, V value) {
+        Map<K, V> map = new HashMap<>();
+        map.put(key, value);
+        this.entry = map.entrySet().iterator().next();
     }
 
     public Integer getLineNumber() {
