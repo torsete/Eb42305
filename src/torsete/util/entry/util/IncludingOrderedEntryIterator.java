@@ -14,7 +14,6 @@ public class IncludingOrderedEntryIterator<K, V> extends OrderedEntryIterator<K,
     private OrderedEntryIteratorStack<K, V> iteratorStack;
     private Predicate<OrderedEntry<K, V>> includePredicate;
     private BiFunction<V, V, OrderedEntryIterator<K, V>> sourceFactoryFunction;
-    private boolean tabsInKeyEnabled;
     private List<OrderedEntryIterator<K, V>> toBeClosedIterators;
 
     public IncludingOrderedEntryIterator() {
@@ -31,12 +30,6 @@ public class IncludingOrderedEntryIterator<K, V> extends OrderedEntryIterator<K,
         this.includePredicate = includePredicate;
         return this;
     }
-
-    public IncludingOrderedEntryIterator<K, V> enableTabsInKey(boolean enabled) {
-        tabsInKeyEnabled = enabled;
-        return this;
-    }
-
 
     public void close() {
         toBeClosedIterators.forEach(i -> i.close());
