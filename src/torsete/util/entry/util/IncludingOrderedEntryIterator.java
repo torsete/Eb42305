@@ -1,4 +1,6 @@
-package torsete.util.entry;
+package torsete.util.entry.util;
+
+import torsete.util.entry.OrderedEntry;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -8,7 +10,7 @@ import java.util.function.Predicate;
 import java.util.stream.Stream;
 
 
-class IncludingOrderedEntryIterator<K, V> extends OrderedEntryIterator<K, V> {
+public class IncludingOrderedEntryIterator<K, V> extends OrderedEntryIterator<K, V> {
     private OrderedEntryIteratorStack<K, V> iteratorStack;
     private Predicate<OrderedEntry<K, V>> includePredicate;
     private BiFunction<V, V, OrderedEntryIterator<K, V>> sourceFactoryFunction;
@@ -87,7 +89,6 @@ class IncludingOrderedEntryIterator<K, V> extends OrderedEntryIterator<K, V> {
         } else {
             iterator = sourceFactoryFunction.apply(iteratorStack.top().getSource(), source);
         }
-        ((ReaderOrderedEntryIterator) iterator).enableTabsInKey(tabsInKeyEnabled);
         return iterator.setEntryConsumers(entryConsumers);
 
     }

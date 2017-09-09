@@ -1,6 +1,8 @@
 package torsete.util.entry;
 
 import org.junit.Test;
+import torsete.util.entry.util.LinkedOrderedEntryIterator;
+import torsete.util.entry.util.OrderedEntryIterator;
 
 import java.util.Comparator;
 import java.util.HashMap;

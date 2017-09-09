@@ -1,4 +1,6 @@
-package torsete.util.entry;
+package torsete.util.entry.util;
+
+import torsete.util.entry.OrderedEntry;
 
 import java.util.ArrayList;
 import java.util.Iterator;

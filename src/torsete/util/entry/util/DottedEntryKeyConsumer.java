@@ -1,4 +1,6 @@
-package torsete.util.entry;
+package torsete.util.entry.util;
+
+import torsete.util.entry.OrderedEntry;
 
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -7,21 +9,38 @@ import java.util.function.Consumer;
 import java.util.stream.Collectors;
 
 /**
- * Created by Torsten on 28.05.2017.
+ * Implements "dot notation" of keys
+ *
+ * Examples:
+ *
+ * aaa.bbb = ...
+ * .ccc = ...
+ * ..ddd
+ * .eee
+ *
+ * The key ".ccc" wil be replaced by "aaa.ccc"
+ * The key "..ddd" wil be replaced by "aaa.ccc.ddd"
+ * The key ".eee" wil be replaced by "aaa.eee"
+ *
  */
-class DottedEntryKeyConsumer<K, V> implements Consumer<OrderedEntry<K, V>> {
+public class DottedEntryKeyConsumer<K, V> implements Consumer<OrderedEntry<K, V>> {
     private String[] previousSplitKey;
 
     private char[] splitChars;
 
     public DottedEntryKeyConsumer() {
-        this(' ', '.', '\t');
+        this('.');
     }
 
     public DottedEntryKeyConsumer(char... splitChars) {
         this.splitChars = splitChars;
     }
 
+    /**
+     * Changes thekey of the entry if nessecary
+     *
+     * @param orderedEntry
+     */
     @Override
     public void accept(OrderedEntry<K, V> orderedEntry) {
         String[] splitKey = splitKey(orderedEntry).stream().map(s -> s.trim()).collect(Collectors.toList()).toArray(new String[0]);
@@ -41,7 +60,7 @@ class DottedEntryKeyConsumer<K, V> implements Consumer<OrderedEntry<K, V>> {
 
         // Compute new Map.Entry<Object,Object>:
         K newKey = (K) Arrays.stream(splitKey).collect(Collectors.joining("."));
-        orderedEntry.setKey(newKey);
+        orderedEntry.replaceKey(newKey);
         previousSplitKey = splitKey;
 
     }

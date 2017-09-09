@@ -4,6 +4,8 @@ import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
 import torsete.util.TestUtil;
+import torsete.util.entry.util.OrderedEntryIterator;
+import torsete.util.entry.util.ReaderOrderedEntryIterator;
 
 import java.io.IOException;
 import java.util.Properties;

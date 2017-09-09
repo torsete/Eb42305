@@ -1,4 +1,6 @@
-package torsete.util.entry;
+package torsete.util.entry.util;
+
+import torsete.util.entry.OrderedEntry;
 
 import java.io.BufferedReader;
 import java.io.IOException;
@@ -21,18 +23,9 @@ public class ReaderOrderedEntryIterator<K, V> extends OrderedEntryIterator<K, V>
      * Current line number defined by the BufferedReader
      */
     private int nextLineNumber;
-    /**
-     * If true tab chars to the left of an entry key is replaced by dots
-     */
-    protected boolean tabsInKeyEnabled;
 
     public ReaderOrderedEntryIterator<K, V> setReader(Reader reader) {
         this.bufferedReader = new BufferedReader(reader);
-        return this;
-    }
-
-    public ReaderOrderedEntryIterator<K, V> enableTabsInKey(boolean enabled) {
-        tabsInKeyEnabled = enabled;
         return this;
     }
 
@@ -49,7 +42,6 @@ public class ReaderOrderedEntryIterator<K, V> extends OrderedEntryIterator<K, V>
     protected OrderedEntry<K, V> readEntry() {
         String line = readLine();
         while (line != null) {
-            String collectTabsBeforeEntryKey = collectTabsBeforeEntryKey(line);
             String collectedLine = "";
             while (line != null) {
                 nextLineNumber++;
@@ -62,7 +54,7 @@ public class ReaderOrderedEntryIterator<K, V> extends OrderedEntryIterator<K, V>
                     line = null;
                 }
             }
-            Map.Entry<K, V> entry = grabEntry(collectedLine, tabsInKeyEnabled ? collectTabsBeforeEntryKey : null);
+            Map.Entry<K, V> entry = fetchEntry(collectedLine);
             if (entry != null) {
                 return new OrderedEntry(entry).setLineNumber(nextLineNumber - 1).setSource(getSource());
             }
@@ -76,7 +68,7 @@ public class ReaderOrderedEntryIterator<K, V> extends OrderedEntryIterator<K, V>
         int pos = string.length();
         for (int i = 0; i < string.length(); i++) {
             char c = string.charAt(i);
-            if (c != ' ' && c != '\t') {
+            if (c != ' ') {
                 pos = i;
                 break;
             }
@@ -92,29 +84,13 @@ public class ReaderOrderedEntryIterator<K, V> extends OrderedEntryIterator<K, V>
         }
     }
 
-    private String collectTabsBeforeEntryKey(String line) {
-        StringBuilder sb = new StringBuilder();
-        for (int i = 0; i < line.length(); i++) {
-            char c = line.charAt(i);
-            if (c == '\t') {
-                sb.append(c);
-            } else {
-                if (c != ' ') {
-                    break;
-                }
-            }
-        }
-        return sb.toString();
-
-    }
-
     /**
      * Ectracts an entry from a string which may contain en entry
      *
      * @param keyPrefix If not null this value will be appended as key prefix
      * @return Null if the input line does not contain a full entry
      */
-    private Map.Entry<K, V> grabEntry(String string, String keyPrefix) {
+    private Map.Entry<K, V> fetchEntry(String string) {
         Properties properties = new Properties();  // To be used as parser
         StringReader stringReader = new StringReader(string);
         try {
@@ -130,9 +106,6 @@ public class ReaderOrderedEntryIterator<K, V> extends OrderedEntryIterator<K, V>
         V value = (V) entry.getValue();
 
         Map<K, V> map = new HashMap<>();
-        if (keyPrefix != null) {
-            key = (K) (keyPrefix + key);
-        }
         map.put(key, value);
         return map.entrySet().iterator().next();
     }
