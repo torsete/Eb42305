@@ -7,7 +7,7 @@ import java.util.Properties;
 /**
  * An ordered {@link Map.Entry}. The ordering of a set of {@link Map.Entry} is implemented by a successor for each element of the set
  */
-public class OrderedEntry<K, V> {
+public class LinkedEntry<K, V> {
     /**
      * The entry
      */
@@ -15,7 +15,7 @@ public class OrderedEntry<K, V> {
     /**
      * Succesor successor of the entry. Is null for the last element
      */
-    private OrderedEntry successor;
+    private LinkedEntry successor;
     /**
      * Optional decoration of the element. Null if not present
      */
@@ -25,11 +25,11 @@ public class OrderedEntry<K, V> {
      */
     private V source;
 
-    public OrderedEntry(Map.Entry<K, V> entry) {
+    public LinkedEntry(Map.Entry<K, V> entry) {
         this.entry = entry;
     }
 
-    public OrderedEntry(K key, V value) {
+    public LinkedEntry(K key, V value) {
         Map<K, V> map = new HashMap<>();
         map.put(key, value);
         this.entry = map.entrySet().iterator().next();
@@ -51,11 +51,11 @@ public class OrderedEntry<K, V> {
     /**
      * @return Null if this is the last element
      */
-    public OrderedEntry<K, V> getSuccessor() {
+    public LinkedEntry<K, V> getSuccessor() {
         return successor;
     }
 
-    public void setSuccessor(OrderedEntry<K, V> successor) {
+    public void setSuccessor(LinkedEntry<K, V> successor) {
         this.successor = successor;
     }
 
@@ -83,7 +83,7 @@ public class OrderedEntry<K, V> {
         return lineNumber;
     }
 
-    public OrderedEntry<K, V> setLineNumber(Integer lineNumber) {
+    public LinkedEntry<K, V> setLineNumber(Integer lineNumber) {
         this.lineNumber = lineNumber;
         return this;
     }
@@ -95,7 +95,7 @@ public class OrderedEntry<K, V> {
         return source;
     }
 
-    public OrderedEntry<K, V> setSource(V source) {
+    public LinkedEntry<K, V> setSource(V source) {
         this.source = source;
         return this;
     }

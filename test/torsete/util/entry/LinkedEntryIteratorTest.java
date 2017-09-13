@@ -1,8 +1,8 @@
 package torsete.util.entry;
 
 import org.junit.Test;
-import torsete.util.entry.util.LinkedOrderedEntryIterator;
-import torsete.util.entry.util.OrderedEntryIterator;
+import torsete.util.entry.util.EntryIterator;
+import torsete.util.entry.util.LinkedEntryIterator;
 
 import java.util.Comparator;
 import java.util.HashMap;
@@ -18,11 +18,11 @@ import static org.junit.Assert.assertTrue;
 /**
  * Created by Torsten on 14.06.2017.
  */
-public class LinkedOrderedEntryIteratorTest {
+public class LinkedEntryIteratorTest {
 
     @Test
     public void test0Entries() {
-        OrderedEntryIterator iterator = new LinkedOrderedEntryIterator(null).open();
+        EntryIterator iterator = new LinkedEntryIterator(null).open();
         assertFalse(iterator.hasNext());
         assertNull(iterator.lookAhead());
     }
@@ -33,9 +33,9 @@ public class LinkedOrderedEntryIteratorTest {
         map.put("0", "a");
 
 
-        List<OrderedEntry<String, String>> orderedEntries = map.entrySet().stream()
+        List<LinkedEntry<String, String>> orderedEntries = map.entrySet().stream()
                 .sorted(Comparator.comparing(Map.Entry::getKey))
-                .map(es -> new OrderedEntry<>(es))
+                .map(es -> new LinkedEntry<>(es))
                 .collect(Collectors.toList());
 
         for (int i = 0; i < orderedEntries.size(); i++) {
@@ -43,7 +43,7 @@ public class LinkedOrderedEntryIteratorTest {
                 orderedEntries.get(i).setSuccessor(orderedEntries.get(i + 1));
             }
         }
-        OrderedEntryIterator iterator = new LinkedOrderedEntryIterator(orderedEntries.get(0)).open();
+        EntryIterator iterator = new LinkedEntryIterator(orderedEntries.get(0)).open();
 
         assertTrue(iterator.hasNext());
         assertEquals("0=a", iterator.lookAhead().getEntry().toString());
@@ -59,16 +59,16 @@ public class LinkedOrderedEntryIteratorTest {
         map.put("1", "b");
         map.put("2", "c");
 
-        List<OrderedEntry<String, String>> orderedEntries = map.entrySet().stream()
+        List<LinkedEntry<String, String>> orderedEntries = map.entrySet().stream()
                 .sorted(Comparator.comparing(Map.Entry::getKey))
-                .map(es -> new OrderedEntry<>(es))
+                .map(es -> new LinkedEntry<>(es))
                 .collect(Collectors.toList());
         for (int i = 0; i < orderedEntries.size(); i++) {
             if (i < orderedEntries.size() - 1) {
                 orderedEntries.get(i).setSuccessor(orderedEntries.get(i + 1));
             }
         }
-        OrderedEntryIterator iterator = new LinkedOrderedEntryIterator(orderedEntries.get(0)).open();
+        EntryIterator iterator = new LinkedEntryIterator(orderedEntries.get(0)).open();
 
 
         assertTrue(iterator.hasNext());

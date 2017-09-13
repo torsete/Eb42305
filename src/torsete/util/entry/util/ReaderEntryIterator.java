@@ -1,6 +1,6 @@
 package torsete.util.entry.util;
 
-import torsete.util.entry.OrderedEntry;
+import torsete.util.entry.LinkedEntry;
 
 import java.io.BufferedReader;
 import java.io.IOException;
@@ -13,7 +13,7 @@ import java.util.Properties;
 /**
  * Fetches input from a Reader.
  */
-public class ReaderOrderedEntryIterator<K, V> extends OrderedEntryIterator<K, V> {
+public class ReaderEntryIterator<K, V> extends EntryIterator<K, V> {
 
     /**
      * Entry source
@@ -24,7 +24,7 @@ public class ReaderOrderedEntryIterator<K, V> extends OrderedEntryIterator<K, V>
      */
     private int nextLineNumber;
 
-    public ReaderOrderedEntryIterator<K, V> setReader(Reader reader) {
+    public ReaderEntryIterator<K, V> setReader(Reader reader) {
         this.bufferedReader = new BufferedReader(reader);
         return this;
     }
@@ -39,7 +39,7 @@ public class ReaderOrderedEntryIterator<K, V> extends OrderedEntryIterator<K, V>
     }
 
     @Override
-    protected OrderedEntry<K, V> readEntry() {
+    protected LinkedEntry<K, V> readEntry() {
         String line = readLine();
         while (line != null) {
             String collectedLine = "";
@@ -56,7 +56,7 @@ public class ReaderOrderedEntryIterator<K, V> extends OrderedEntryIterator<K, V>
             }
             Map.Entry<K, V> entry = fetchEntry(collectedLine);
             if (entry != null) {
-                return new OrderedEntry(entry).setLineNumber(nextLineNumber - 1).setSource(getSource());
+                return new LinkedEntry(entry).setLineNumber(nextLineNumber - 1).setSource(getSource());
             }
             line = readLine();
         }

@@ -1,6 +1,6 @@
 package torsete.util.entry.util;
 
-import torsete.util.entry.OrderedEntry;
+import torsete.util.entry.LinkedEntry;
 
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -23,7 +23,7 @@ import java.util.stream.Collectors;
  * The key ".eee" wil be replaced by "aaa.eee"
  *
  */
-public class DottedEntryKeyConsumer<K, V> implements Consumer<OrderedEntry<K, V>> {
+public class DottedEntryKeyConsumer<K, V> implements Consumer<LinkedEntry<K, V>> {
     private String[] previousSplitKey;
 
     private char[] splitChars;
@@ -39,11 +39,11 @@ public class DottedEntryKeyConsumer<K, V> implements Consumer<OrderedEntry<K, V>
     /**
      * Changes thekey of the entry if nessecary
      *
-     * @param orderedEntry
+     * @param linkedEntry
      */
     @Override
-    public void accept(OrderedEntry<K, V> orderedEntry) {
-        String[] splitKey = splitKey(orderedEntry).stream().map(s -> s.trim()).collect(Collectors.toList()).toArray(new String[0]);
+    public void accept(LinkedEntry<K, V> linkedEntry) {
+        String[] splitKey = splitKey(linkedEntry).stream().map(s -> s.trim()).collect(Collectors.toList()).toArray(new String[0]);
         if (previousSplitKey == null) {
             previousSplitKey = splitKey;
             return;
@@ -60,12 +60,12 @@ public class DottedEntryKeyConsumer<K, V> implements Consumer<OrderedEntry<K, V>
 
         // Compute new Map.Entry<Object,Object>:
         K newKey = (K) Arrays.stream(splitKey).collect(Collectors.joining("."));
-        orderedEntry.replaceKey(newKey);
+        linkedEntry.replaceKey(newKey);
         previousSplitKey = splitKey;
 
     }
 
-    private List<String> splitKey(OrderedEntry<K, V> entry) {
+    private List<String> splitKey(LinkedEntry<K, V> entry) {
         String key = entry.getKey().toString();
         List<String> strings = new ArrayList<>();
         StringBuilder sb = new StringBuilder();

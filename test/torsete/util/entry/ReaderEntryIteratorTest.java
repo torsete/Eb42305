@@ -4,8 +4,8 @@ import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
 import torsete.util.TestUtil;
-import torsete.util.entry.util.OrderedEntryIterator;
-import torsete.util.entry.util.ReaderOrderedEntryIterator;
+import torsete.util.entry.util.EntryIterator;
+import torsete.util.entry.util.ReaderEntryIterator;
 
 import java.io.IOException;
 import java.util.Properties;
@@ -18,7 +18,7 @@ import static org.junit.Assert.assertTrue;
 /**
  * Created by Torsten on 14.06.2017.
  */
-public class ReaderOrderedEntryIteratorTest {
+public class ReaderEntryIteratorTest {
 
     private TestUtil testUtil;
     private int testcount;
@@ -43,12 +43,12 @@ public class ReaderOrderedEntryIteratorTest {
                 "2=c");
 
 
-        OrderedEntryIterator iterator = new ReaderOrderedEntryIterator()
+        EntryIterator iterator = new ReaderEntryIterator()
                 .setReader(testUtil.getFileReader("test"))
                 .open();
 
         assertTrue(iterator.hasNext());
-        OrderedEntry next = iterator.next();
+        LinkedEntry next = iterator.next();
         assertEquals("0=a", next.getEntry().toString());
         assertEquals("0: 0=a", next.toString());
         assertEquals("1: 1=b", iterator.lookAhead().toString());
@@ -84,12 +84,12 @@ public class ReaderOrderedEntryIteratorTest {
                 "k3=v3"); //9
 
 
-        OrderedEntryIterator iterator = new ReaderOrderedEntryIterator()
+        EntryIterator iterator = new ReaderEntryIterator()
                 .setReader(testUtil.getFileReader("test"))
                 .open();
 
         assertTrue(iterator.hasNext());
-        OrderedEntry next = iterator.next();
+        LinkedEntry next = iterator.next();
         assertEquals("2: key1=a", next.toString());
         assertEquals("4: key2=b", iterator.lookAhead().toString());
 
@@ -150,7 +150,7 @@ public class ReaderOrderedEntryIteratorTest {
     }
 
     /**
-     * Verifis that one set of lines vil give the same (key,value) pair in {@link Properties} and {@link ReaderOrderedEntryIterator
+     * Verifis that one set of lines vil give the same (key,value) pair in {@link Properties} and {@link ReaderEntryIterator
      *
      * @param lines
      */
@@ -169,13 +169,13 @@ public class ReaderOrderedEntryIteratorTest {
         properties.entrySet().stream().forEach(es -> System.out.println(">>>" + es + "<<<"));
 
 
-        OrderedEntryIterator<String, String> iterator = new ReaderOrderedEntryIterator<String, String>()
+        EntryIterator<String, String> iterator = new ReaderEntryIterator<String, String>()
                 .setReader(testUtil.getFileReader(filename))
                 .open();
 
         int count = 0;
         while (iterator.hasNext()) {
-            OrderedEntry<String, String> next = iterator.next();
+            LinkedEntry<String, String> next = iterator.next();
             System.out.println(">>>" + next + "<<<");
             String key = next.getKey().trim();
             String expectedValue = properties.getProperty(key);

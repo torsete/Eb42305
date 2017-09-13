@@ -1,6 +1,6 @@
 package torsete.util.entry.util;
 
-import torsete.util.entry.OrderedEntry;
+import torsete.util.entry.LinkedEntry;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -10,23 +10,23 @@ import java.util.function.Predicate;
 import java.util.stream.Stream;
 
 
-public class IncludingOrderedEntryIterator<K, V> extends OrderedEntryIterator<K, V> {
+public class IncludingEntryIterator<K, V> extends EntryIterator<K, V> {
     private OrderedEntryIteratorStack<K, V> iteratorStack;
-    private Predicate<OrderedEntry<K, V>> includePredicate;
-    private BiFunction<V, V, OrderedEntryIterator<K, V>> sourceFactoryFunction;
-    private List<OrderedEntryIterator<K, V>> toBeClosedIterators;
+    private Predicate<LinkedEntry<K, V>> includePredicate;
+    private BiFunction<V, V, EntryIterator<K, V>> sourceFactoryFunction;
+    private List<EntryIterator<K, V>> toBeClosedIterators;
 
-    public IncludingOrderedEntryIterator() {
+    public IncludingEntryIterator() {
         iteratorStack = new OrderedEntryIteratorStack<>();
         toBeClosedIterators = new ArrayList<>();
     }
 
-    public IncludingOrderedEntryIterator<K, V> setSourceFactoryFunction(BiFunction<V, V, OrderedEntryIterator<K, V>> sourceFactoryFunction) {
+    public IncludingEntryIterator<K, V> setSourceFactoryFunction(BiFunction<V, V, EntryIterator<K, V>> sourceFactoryFunction) {
         this.sourceFactoryFunction = sourceFactoryFunction;
         return this;
     }
 
-    public IncludingOrderedEntryIterator<K, V> setIncludePredicate(Predicate<OrderedEntry<K, V>> includePredicate) {
+    public IncludingEntryIterator<K, V> setIncludePredicate(Predicate<LinkedEntry<K, V>> includePredicate) {
         this.includePredicate = includePredicate;
         return this;
     }
@@ -35,12 +35,12 @@ public class IncludingOrderedEntryIterator<K, V> extends OrderedEntryIterator<K,
         toBeClosedIterators.forEach(i -> i.close());
     }
 
-    public OrderedEntryIterator<K, V> open() {
+    public EntryIterator<K, V> open() {
         return open(getSource());
     }
 
-    public OrderedEntryIterator<K, V> open(V source) {
-        OrderedEntryIterator<K, V> iterator = newOrderedEntryIterator(source);
+    public EntryIterator<K, V> open(V source) {
+        EntryIterator<K, V> iterator = newOrderedEntryIterator(source);
 
         final V newSource = iterator.getSource();
         Optional<V> any = iteratorStack.stream()
@@ -57,8 +57,8 @@ public class IncludingOrderedEntryIterator<K, V> extends OrderedEntryIterator<K,
     }
 
     @Override
-    protected OrderedEntry<K, V> readEntry() {
-        OrderedEntry<K, V> entry = iteratorStack.top().readEntry();
+    protected LinkedEntry<K, V> readEntry() {
+        LinkedEntry<K, V> entry = iteratorStack.top().readEntry();
         while (entry == null) {
             toBeClosedIterators.add(iteratorStack.top());
             iteratorStack.pop();
@@ -75,8 +75,8 @@ public class IncludingOrderedEntryIterator<K, V> extends OrderedEntryIterator<K,
         return entry;
     }
 
-    private OrderedEntryIterator<K, V> newOrderedEntryIterator(V source) {
-        OrderedEntryIterator<K, V> iterator;
+    private EntryIterator<K, V> newOrderedEntryIterator(V source) {
+        EntryIterator<K, V> iterator;
         if (iteratorStack.empty()) {
             iterator = sourceFactoryFunction.apply(null, source);
         } else {
@@ -87,7 +87,7 @@ public class IncludingOrderedEntryIterator<K, V> extends OrderedEntryIterator<K,
     }
 
     class OrderedEntryIteratorStack<K, V> {
-        private List<OrderedEntryIterator<K, V>> iterators;
+        private List<EntryIterator<K, V>> iterators;
 
         public OrderedEntryIteratorStack() {
             iterators = new ArrayList<>();
@@ -96,18 +96,18 @@ public class IncludingOrderedEntryIterator<K, V> extends OrderedEntryIterator<K,
         /**
          * Sustains no source duplicates in stack
          */
-        public void push(OrderedEntryIterator<K, V> iterator) {
+        public void push(EntryIterator<K, V> iterator) {
             iterators.add(iterator);
         }
 
-        public OrderedEntryIterator<K, V> pop() {
+        public EntryIterator<K, V> pop() {
             int topIndex = iterators.size() - 1;
-            OrderedEntryIterator iterator = iterators.get(topIndex);
+            EntryIterator iterator = iterators.get(topIndex);
             iterators.remove(topIndex);
             return iterator;
         }
 
-        public OrderedEntryIterator<K, V> top() {
+        public EntryIterator<K, V> top() {
             return iterators.get(iterators.size() - 1);
         }
 
@@ -115,7 +115,7 @@ public class IncludingOrderedEntryIterator<K, V> extends OrderedEntryIterator<K,
             return iterators.size() == 0;
         }
 
-        public Stream<OrderedEntryIterator<K, V>> stream() {
+        public Stream<EntryIterator<K, V>> stream() {
             return iterators.stream();
         }
 
