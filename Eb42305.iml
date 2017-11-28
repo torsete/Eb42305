@@ -12,27 +12,27 @@
     <orderEntry type="module-library">
       <library>
         <CLASSES>
-          <root url="file://$MODULE_DIR$/lib/logback" />
+          <root url="file://$MODULE_DIR$/../lib/logback" />
         </CLASSES>
         <JAVADOC />
         <SOURCES>
-          <root url="file://$MODULE_DIR$/lib/logback" />
+          <root url="file://$MODULE_DIR$/../lib/logback" />
         </SOURCES>
-        <jarDirectory url="file://$MODULE_DIR$/lib/logback" recursive="false" />
-        <jarDirectory url="file://$MODULE_DIR$/lib/logback" recursive="false" type="SOURCES" />
+        <jarDirectory url="file://$MODULE_DIR$/../lib/logback" recursive="false" />
+        <jarDirectory url="file://$MODULE_DIR$/../lib/logback" recursive="false" type="SOURCES" />
       </library>
     </orderEntry>
     <orderEntry type="module-library">
       <library>
         <CLASSES>
-          <root url="file://$MODULE_DIR$/lib/slf4j" />
+          <root url="file://$MODULE_DIR$/../lib/slf4j" />
         </CLASSES>
         <JAVADOC />
         <SOURCES>
-          <root url="file://$MODULE_DIR$/lib/slf4j" />
+          <root url="file://$MODULE_DIR$/../lib/slf4j" />
         </SOURCES>
-        <jarDirectory url="file://$MODULE_DIR$/lib/slf4j" recursive="false" />
-        <jarDirectory url="file://$MODULE_DIR$/lib/slf4j" recursive="false" type="SOURCES" />
+        <jarDirectory url="file://$MODULE_DIR$/../lib/slf4j" recursive="false" />
+        <jarDirectory url="file://$MODULE_DIR$/../lib/slf4j" recursive="false" type="SOURCES" />
       </library>
     </orderEntry>
   </component>
