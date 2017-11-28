@@ -3,6 +3,8 @@ package torsete.util.entry;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import torsete.util.TestUtil;
 import torsete.util.entry.util.EntryIterator;
 import torsete.util.entry.util.ReaderEntryIterator;
@@ -20,11 +22,14 @@ import static org.junit.Assert.assertTrue;
  */
 public class ReaderEntryIteratorTest {
 
+
+    final Logger log = LoggerFactory.getLogger(ReaderEntryIterator.class);
     private TestUtil testUtil;
     private int testcount;
 
     @Before
     public void setUp() {
+        log.info("setup...");
         testUtil = new TestUtil(this);
         testUtil.setupTestFolder();
     }
