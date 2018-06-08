@@ -9,6 +9,33 @@
     <orderEntry type="inheritedJdk" />
     <orderEntry type="sourceFolder" forTests="false" />
     <orderEntry type="library" name="junit" level="project" />
+    <orderEntry type="library" name="lib" level="project" />
+    <orderEntry type="module-library">
+      <library>
+        <CLASSES>
+          <root url="file://$MODULE_DIR$/../lib/hamcrest" />
+        </CLASSES>
+        <JAVADOC />
+        <SOURCES>
+          <root url="file://$MODULE_DIR$/../lib/hamcrest" />
+        </SOURCES>
+        <jarDirectory url="file://$MODULE_DIR$/../lib/hamcrest" recursive="false" />
+        <jarDirectory url="file://$MODULE_DIR$/../lib/hamcrest" recursive="false" type="SOURCES" />
+      </library>
+    </orderEntry>
+    <orderEntry type="module-library">
+      <library>
+        <CLASSES>
+          <root url="file://$MODULE_DIR$/../lib/junit" />
+        </CLASSES>
+        <JAVADOC />
+        <SOURCES>
+          <root url="file://$MODULE_DIR$/../lib/junit" />
+        </SOURCES>
+        <jarDirectory url="file://$MODULE_DIR$/../lib/junit" recursive="false" />
+        <jarDirectory url="file://$MODULE_DIR$/../lib/junit" recursive="false" type="SOURCES" />
+      </library>
+    </orderEntry>
     <orderEntry type="module-library">
       <library>
         <CLASSES>
@@ -20,19 +47,6 @@
         </SOURCES>
         <jarDirectory url="file://$MODULE_DIR$/../lib/logback" recursive="false" />
         <jarDirectory url="file://$MODULE_DIR$/../lib/logback" recursive="false" type="SOURCES" />
-      </library>
-    </orderEntry>
-    <orderEntry type="module-library">
-      <library>
-        <CLASSES>
-          <root url="file://$MODULE_DIR$/../lib/slf4j" />
-        </CLASSES>
-        <JAVADOC />
-        <SOURCES>
-          <root url="file://$MODULE_DIR$/../lib/slf4j" />
-        </SOURCES>
-        <jarDirectory url="file://$MODULE_DIR$/../lib/slf4j" recursive="false" />
-        <jarDirectory url="file://$MODULE_DIR$/../lib/slf4j" recursive="false" type="SOURCES" />
       </library>
     </orderEntry>
   </component>
