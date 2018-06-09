@@ -75,6 +75,7 @@ public class LineParser {
         if (variables != null) {
             return this;
         }
+        line = line.replace('\t', ' ');
         leftSide = new StringBuilder();
         rightSide = new StringBuilder();
         variables = new HashMap<>();
@@ -226,7 +227,7 @@ public class LineParser {
     }
 
     private boolean isLegalNameChar(char c) {
-        final String legalNameChars = "abcdefghijklmnopqrstuvwxyzæøåABCDEFGHIJKLMOPQRSTUVWXYZÆØÅ1234567890_";
+        final String legalNameChars = "abcdefghijklmnopqrstuvwxyzæøåABCDEFGHIJKLMOPQRSTUVWXYZÆØÅ1234567890_.";
         return legalNameChars.contains(String.valueOf(c));
     }
 

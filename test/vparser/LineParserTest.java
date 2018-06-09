@@ -230,12 +230,12 @@ public class LineParserTest {
     @Test
     public void testNameCaseSensitive() {
         lineParser.setLine("xXx a=b C=d").enableLineType(true).enableCaseSensitiveName(true).parse();
-//        assertEquals(2, lineParser.getVariables().size());
-//        assertEquals("b", lineParser.getValue("a"));
-//        assertEquals("d", lineParser.getValue("C"));
-//        assertEquals("xXx", lineParser.getLineType());
-//        assertNull(lineParser.getValue("A"));
-//        assertNull(lineParser.getValue("c"));
+        assertEquals(2, lineParser.getVariables().size());
+        assertEquals("b", lineParser.getValue("a"));
+        assertEquals("d", lineParser.getValue("C"));
+        assertEquals("xXx", lineParser.getLineType());
+        assertNull(lineParser.getValue("A"));
+        assertNull(lineParser.getValue("c"));
 
         lineParser.setLine("xXx a=b C=d").enableLineType(true).enableCaseSensitiveName(false).parse();
         assertEquals(2, lineParser.getVariables().size());
