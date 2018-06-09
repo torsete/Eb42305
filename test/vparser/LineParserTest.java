@@ -207,6 +207,23 @@ public class LineParserTest {
         assertEquals(2, lineParser.getVariables().size());
     }
 
+    @Test
+    public void testLineType() {
+        try {
+            lineParser.setLine("xxx a=b c=d").parse();
+            fail("Forventer en IllegalArgumentException");
+        } catch (IllegalArgumentException e) {
+            System.out.println(e.toString());
+        }
+
+        lineParser.setLine("xxx a=b c=d").enableLineType(true).parse();
+        assertEquals(2, lineParser.getVariables().size());
+        assertEquals("b", lineParser.getValue("a"));
+        assertEquals("d", lineParser.getValue("c"));
+        assertEquals("xxx", lineParser.getLineType());
+
+    }
+
     private void tryThis(String line) {
         System.out.println("****************");
         System.out.println(line);

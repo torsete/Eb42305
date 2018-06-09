@@ -14,14 +14,26 @@ public class LineParser {
     private StringBuilder rightSide;
     private Map<String, String> variables;
 
+    private boolean lineTypeEnabled;
+    private String lineType;
+
     public LineParser setLine(String line) {
         this.line = line;
         variables = null;
         return this;
     }
 
+    public LineParser enableLineType(boolean enabled) {
+        lineTypeEnabled = enabled;
+        return this;
+    }
+
     public LineParser parse() {
         return parseLine();
+    }
+
+    public String getLineType() {
+        return lineType;
     }
 
     public String getValue(String name) {
@@ -54,6 +66,20 @@ public class LineParser {
         variables = new HashMap<>();
         pos = 0;
         boolean isVariablePending = false;
+
+        if (lineTypeEnabled) {
+            while (currentChar() == ' ') {
+                nextPlease();
+            }
+            while (isLegalNameChar(currentChar())) {
+                leftSide.append(currentChar());
+                nextPlease();
+            }
+            lineType = leftSide.toString();
+            leftSide = new StringBuilder();
+        }
+
+
         while (currentChar() > 0) {
             while (currentChar() == ' ') {
                 nextPlease();
@@ -95,9 +121,6 @@ public class LineParser {
 
 
     private void parseLeftSide() {
-        while (currentChar() == ' ') {
-            nextPlease();
-        }
         while (isLegalNameChar(currentChar())) {
             leftSide.append(currentChar());
             nextPlease();
