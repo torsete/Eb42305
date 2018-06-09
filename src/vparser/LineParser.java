@@ -14,7 +14,10 @@ public class LineParser {
     private StringBuilder rightSide;
     private Map<String, String> variables;
 
+    private boolean isVariablePending;
+
     private boolean lineTypeEnabled;
+    private boolean isNameCaseSensitive;
     private String lineType;
 
     public LineParser setLine(String line) {
@@ -28,6 +31,11 @@ public class LineParser {
         return this;
     }
 
+    public LineParser enableCaseSensitiveName(boolean enabled) {
+        isNameCaseSensitive = enabled;
+        return this;
+    }
+
     public LineParser parse() {
         return parseLine();
     }
@@ -37,12 +45,18 @@ public class LineParser {
     }
 
     public String getValue(String name) {
+        if (!isNameCaseSensitive) {
+            name = name.toLowerCase();
+        }
         parse();
         String value = variables.get(name);
         return isStringValue(value) ? value.substring(1) : value;
     }
 
     public boolean isString(String name) {
+        if (!isNameCaseSensitive) {
+            name = name.toLowerCase();
+        }
         parse();
         return isStringValue(variables.get(name));
     }
@@ -65,60 +79,68 @@ public class LineParser {
         rightSide = new StringBuilder();
         variables = new HashMap<>();
         pos = 0;
-        boolean isVariablePending = false;
+        isVariablePending = false;
 
         if (lineTypeEnabled) {
-            while (currentChar() == ' ') {
-                nextPlease();
-            }
-            while (isLegalNameChar(currentChar())) {
-                leftSide.append(currentChar());
-                nextPlease();
-            }
-            lineType = leftSide.toString();
-            leftSide = new StringBuilder();
+            parseLineType();
         }
 
-
         while (currentChar() > 0) {
-            while (currentChar() == ' ') {
-                nextPlease();
-            }
-            if (currentChar() == ',') {
-                if (variables.size() == 0) {
-                    reportError("Uventet komma");
-                }
-                nextPlease();
-                isVariablePending = true;
-            }
-            while (currentChar() == ' ') {
-                nextPlease();
-            }
-            if (currentChar() > 0) {
-                parseLeftSide();
-                if (leftSide.length() == 0) {
-                    reportError("Venstreside mangler til værdien");
-                }
-                if (variables.get(leftSide.toString()) != null) {
-                    reportError("Dubleret navn");
-                }
-                parseRightSide();
-                if (rightSide.length() == 0) {
-                    reportError("Værdien mangler");
-                }
-                variables.put(leftSide.toString(), rightSide.toString());
-                leftSide = new StringBuilder();
-                rightSide = new StringBuilder();
-            } else {
-                if (isVariablePending) {
-                    reportError("Uventet afslutning på linien");
-                }
-            }
-
+            parseVariables();
         }
         return this;
     }
 
+    private void parseLineType() {
+        while (currentChar() == ' ') {
+            nextPlease();
+        }
+        while (isLegalNameChar(currentChar())) {
+            leftSide.append(currentChar());
+            nextPlease();
+        }
+        lineType = leftSide.toString();
+        if (!isNameCaseSensitive) {
+            lineType = lineType.toLowerCase();
+        }
+        leftSide = new StringBuilder();
+    }
+
+    private void parseVariables() {
+        while (currentChar() == ' ') {
+            nextPlease();
+        }
+        if (currentChar() == ',') {
+            if (variables.size() == 0) {
+                reportError("Uventet komma");
+            }
+            nextPlease();
+            isVariablePending = true;
+        }
+        while (currentChar() == ' ') {
+            nextPlease();
+        }
+        if (currentChar() > 0) {
+            parseLeftSide();
+            if (leftSide.length() == 0) {
+                reportError("Venstreside mangler til værdien");
+            }
+            if (variables.get(leftSide.toString()) != null) {
+                reportError("Dubleret navn");
+            }
+            parseRightSide();
+            if (rightSide.length() == 0) {
+                reportError("Værdien mangler");
+            }
+            variables.put(leftSide.toString(), rightSide.toString());
+            leftSide = new StringBuilder();
+            rightSide = new StringBuilder();
+        } else {
+            if (isVariablePending) {
+                reportError("Uventet afslutning på linien");
+            }
+        }
+    }
 
     private void parseLeftSide() {
         while (isLegalNameChar(currentChar())) {
@@ -133,6 +155,9 @@ public class LineParser {
             reportError((currentChar() == 0 ? "" : "Tegnet " + currentChar() + " er ugyldigt her. ") + "Forventer = her");
         }
         nextPlease();
+        if (!isNameCaseSensitive) {
+            leftSide = new StringBuilder(leftSide.toString().toLowerCase());
+        }
     }
 
 

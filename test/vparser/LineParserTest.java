@@ -199,9 +199,13 @@ public class LineParserTest {
         assertEquals("Dette er en tekst", lineParser.getValue("Tekst"));
         assertTrue(lineParser.isString("Tekst"));
 
+        lineParser.setLine("Tekst='Dette er en tekst'".replace("'", "\""));
+        assertEquals("Dette er en tekst", lineParser.getValue("tekst"));
+        assertTrue(lineParser.isString("TEkst"));
+
         lineParser.setLine("Tekst=\"Dette er en \"\"tekst\"\"\" og_dette_er_en_variabel=10");
         assertEquals("Dette er en \"tekst\"", lineParser.getValue("Tekst"));
-        assertTrue(lineParser.isString("Tekst"));
+        assertTrue(lineParser.isString("tekst"));
         assertEquals("10", lineParser.getValue("og_dette_er_en_variabel"));
         assertFalse(lineParser.isString("og_dette_er_en_variabel"));
         assertEquals(2, lineParser.getVariables().size());
@@ -221,7 +225,25 @@ public class LineParserTest {
         assertEquals("b", lineParser.getValue("a"));
         assertEquals("d", lineParser.getValue("c"));
         assertEquals("xxx", lineParser.getLineType());
+    }
 
+    @Test
+    public void testNameCaseSensitive() {
+        lineParser.setLine("xXx a=b C=d").enableLineType(true).enableCaseSensitiveName(true).parse();
+//        assertEquals(2, lineParser.getVariables().size());
+//        assertEquals("b", lineParser.getValue("a"));
+//        assertEquals("d", lineParser.getValue("C"));
+//        assertEquals("xXx", lineParser.getLineType());
+//        assertNull(lineParser.getValue("A"));
+//        assertNull(lineParser.getValue("c"));
+
+        lineParser.setLine("xXx a=b C=d").enableLineType(true).enableCaseSensitiveName(false).parse();
+        assertEquals(2, lineParser.getVariables().size());
+        assertEquals("b", lineParser.getValue("a"));
+        assertEquals("d", lineParser.getValue("c"));
+        assertEquals("b", lineParser.getValue("A"));
+        assertEquals("d", lineParser.getValue("C"));
+        assertEquals("xxx", lineParser.getLineType());
     }
 
     private void tryThis(String line) {
