@@ -6,7 +6,10 @@ import java.util.Map;
 /**
  * Created by Torsten on 08.06.2018.
  */
-public class LineParser {
+public class ItemParser {
+    public static final String LEGALNAMECHARS = "abcdefghijklmnopqrstuvwxyzæøåABCDEFGHIJKLMOPQRSTUVWXYZÆØÅ1234567890_.";
+
+
     private String line;
     private int pos;
 
@@ -20,23 +23,23 @@ public class LineParser {
     private boolean isNameCaseSensitive;
     private String lineType;
 
-    public LineParser setLine(String line) {
+    public ItemParser setLine(String line) {
         this.line = line;
         variables = null;
         return this;
     }
 
-    public LineParser enableLineType(boolean enabled) {
+    public ItemParser enableLineType(boolean enabled) {
         lineTypeEnabled = enabled;
         return this;
     }
 
-    public LineParser enableCaseSensitiveName(boolean enabled) {
+    public ItemParser enableCaseSensitiveName(boolean enabled) {
         isNameCaseSensitive = enabled;
         return this;
     }
 
-    public LineParser parse() {
+    public ItemParser parse() {
         return parseLine();
     }
 
@@ -50,15 +53,15 @@ public class LineParser {
         }
         parse();
         String value = variables.get(name);
-        return isStringValue(value) ? value.substring(1) : value;
+        return isLiteralValue(value) ? value.substring(1) : value;
     }
 
-    public boolean isString(String name) {
+    public boolean isLiteral(String name) {
         if (!isNameCaseSensitive) {
             name = name.toLowerCase();
         }
         parse();
-        return isStringValue(variables.get(name));
+        return isLiteralValue(variables.get(name));
     }
 
     public Map<String, String> getVariables() {
@@ -67,11 +70,11 @@ public class LineParser {
         return variables;
     }
 
-    private boolean isStringValue(String value) {
+    private boolean isLiteralValue(String value) {
         return value != null && value.startsWith("\"");
     }
 
-    private LineParser parseLine() {
+    private ItemParser parseLine() {
         if (variables != null) {
             return this;
         }
@@ -153,7 +156,7 @@ public class LineParser {
         }
 
         if (currentChar() != '=') {
-            reportError((currentChar() == 0 ? "" : "Tegnet " + currentChar() + " er ugyldigt her. ") + "Forventer = her");
+            reportError(currentChar() == 0 ? "" : "Tegnet " + currentChar() + " er ugyldigt her");
         }
         nextPlease();
         if (!isNameCaseSensitive) {
@@ -227,8 +230,7 @@ public class LineParser {
     }
 
     private boolean isLegalNameChar(char c) {
-        final String legalNameChars = "abcdefghijklmnopqrstuvwxyzæøåABCDEFGHIJKLMOPQRSTUVWXYZÆØÅ1234567890_.";
-        return legalNameChars.contains(String.valueOf(c));
+        return LEGALNAMECHARS.contains(String.valueOf(c));
     }
 
     private void reportError(String message) {
